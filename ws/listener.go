@@ -21,6 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/michaelquigley/pfxlog"
+	"github.com/openziti/foundation/util/tlz"
 	"github.com/openziti/transport"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -136,6 +137,8 @@ func wslistener(log *logrus.Entry, bindAddress string, cfg *WSConfig, name strin
 		Handler:      router,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{cert},
+			MinVersion:   tlz.GetMinTlsVersion(),
+			CipherSuites: tlz.GetCipherSuites(),
 		},
 	}
 
