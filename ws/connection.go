@@ -22,6 +22,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"github.com/gorilla/websocket"
+	"github.com/openziti/foundation/util/tlz"
 	"github.com/openziti/transport"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -358,15 +359,20 @@ func (c *Connection) tlsHandshake() error {
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(serverCertPEM)
 
+	tlzCipherSuites := tlz.GetCipherSuites()
+	jsSdkSuites := []uint16{
+		tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
+	}
+	tlzCipherSuites = append(tlzCipherSuites, jsSdkSuites...)
+
 	cfg := &tls.Config{
 		ClientCAs:    caCertPool,
 		Certificates: []tls.Certificate{cert},
-		CipherSuites: []uint16{
-			tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		},
-		ClientAuth:               tls.RequireAndVerifyClientCert,
-		MinVersion:               tls.VersionTLS11,
+		CipherSuites: tlzCipherSuites,
+		// ClientAuth:               tls.RequireAndVerifyClientCert,
+		ClientAuth:               tls.RequireAnyClientCert, //TEMP
+		MaxVersion:               tls.VersionTLS12,
+		MinVersion:               tls.VersionTLS12,
 		PreferServerCipherSuites: true,
 	}
 
