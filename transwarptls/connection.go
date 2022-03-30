@@ -18,7 +18,7 @@ package transwarptls
 
 import (
 	"crypto/x509"
-	"github.com/openziti/foundation/transport"
+	"github.com/openziti/transport"
 	"io"
 	"net"
 	"time"

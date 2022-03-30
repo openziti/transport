@@ -22,7 +22,7 @@ import (
 	"github.com/openziti/dilithium/protocol/westlsworld3"
 	"github.com/openziti/dilithium/protocol/westworld3"
 	"github.com/openziti/foundation/identity/identity"
-	"github.com/openziti/foundation/transport"
+	"github.com/openziti/transport"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io"

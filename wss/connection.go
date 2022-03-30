@@ -22,7 +22,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"github.com/gorilla/websocket"
-	"github.com/openziti/foundation/transport"
+	"github.com/openziti/transport"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net"

@@ -17,7 +17,7 @@
 package tcp
 
 import (
-	"github.com/openziti/foundation/transport"
+	"github.com/openziti/transport"
 	"net"
 	"time"
 )

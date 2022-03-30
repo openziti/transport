@@ -19,7 +19,7 @@ package tls
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"github.com/openziti/foundation/transport"
+	"github.com/openziti/transport"
 	"io"
 	"net"
 	"time"

@@ -20,7 +20,7 @@ import (
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/dilithium/cf"
 	"github.com/openziti/dilithium/protocol/westworld3"
-	"github.com/openziti/foundation/transport"
+	"github.com/openziti/transport"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io"

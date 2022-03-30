@@ -20,7 +20,7 @@ import (
 	"bufio"
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/foundation/identity/identity"
-	"github.com/openziti/foundation/transport"
+	"github.com/openziti/transport"
 	udp2 "github.com/openziti/foundation/udp"
 	"github.com/sirupsen/logrus"
 	"io"

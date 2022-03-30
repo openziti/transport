@@ -17,7 +17,7 @@
 package ws
 
 import (
-	"github.com/openziti/foundation/transport"
+	"github.com/openziti/transport"
 )
 
 // Dial is unsupported for ws transport

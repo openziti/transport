@@ -19,7 +19,7 @@ package udp
 import (
 	"bufio"
 	"github.com/openziti/foundation/identity/identity"
-	"github.com/openziti/foundation/transport"
+	"github.com/openziti/transport"
 	"math"
 	"net"
 	"time"
