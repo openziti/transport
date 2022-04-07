@@ -38,6 +38,10 @@ func (a address) Dial(name string, i *identity.TokenId, timeout time.Duration, _
 	return Dial(a.bindableAddress(), name, i, timeout)
 }
 
+func (a address) DialWithLocalBinding(name string, localBinding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Connection, error) {
+	return DialWithLocalBinding(a.bindableAddress(), name, localBinding, i, timeout)
+}
+
 func (a address) Listen(name string, i *identity.TokenId, incoming chan transport.Connection, _ transport.Configuration) (io.Closer, error) {
 	return Listen(a.bindableAddress(), name, i, incoming)
 }

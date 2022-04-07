@@ -51,10 +51,15 @@ func Dial(endpoint *net.UDPAddr, name string, id *identity.TokenId, tcfg transpo
 
 	return &Connection{
 		detail: &transport.ConnectionDetail{
-			Address: "transwarptls:"+endpoint.String(),
+			Address: "transwarptls:" + endpoint.String(),
 			InBound: false,
-			Name: name,
+			Name:    name,
 		},
 		socket: socket,
 	}, nil
+}
+
+func DialWithLocalBinding(endpoint *net.UDPAddr, name, localBinding string, id *identity.TokenId, tcfg transport.Configuration) (transport.Connection, error) {
+	logrus.Warn("Local interface binding is not yet supported with transwarptls. Dialing on the default interface")
+	return Dial(endpoint, name, id, tcfg)
 }

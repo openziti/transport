@@ -43,6 +43,14 @@ func (a address) Dial(name string, i *identity.TokenId, timeout time.Duration, _
 	return Dial(addr, name, i, timeout)
 }
 
+func (a address) DialWithLocalBinding(name string, localBinding string, _ *identity.TokenId, timeout time.Duration, _ transport.Configuration) (transport.Connection, error) {
+	addr, err := a.bindableAddress()
+	if err != nil {
+		return nil, err
+	}
+	return DialWithLocalBinding(addr, name, localBinding, timeout)
+}
+
 func (a address) Listen(name string, i *identity.TokenId, incoming chan transport.Connection, _ transport.Configuration) (io.Closer, error) {
 	addr, err := a.bindableAddress()
 	if err != nil {

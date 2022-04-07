@@ -18,6 +18,7 @@ package udp
 
 import (
 	"bufio"
+	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/foundation/identity/identity"
 	"github.com/openziti/transport"
 	"math"
@@ -27,6 +28,48 @@ import (
 
 func Dial(destination *net.UDPAddr, name string, _ *identity.TokenId, timeout time.Duration) (transport.Connection, error) {
 	socket, err := net.DialTimeout("udp", destination.String(), timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Connection{
+		detail: &transport.ConnectionDetail{
+			Address: "udp:" + destination.String(),
+			InBound: false,
+			Name:    name,
+		},
+		socket: socket,
+		reader: bufio.NewReaderSize(socket, math.MaxUint16),
+	}, nil
+}
+
+func DialWithLocalBinding(destination *net.UDPAddr, name, localBinding string, timeout time.Duration) (transport.Connection, error) {
+	log := pfxlog.Logger()
+
+	dialer := net.Dialer{
+		Timeout: timeout,
+	}
+
+	if localBinding != "" {
+		ief, err := net.InterfaceByName(localBinding)
+		if err != nil {
+			// TODO: Look for an IP address instead
+			log.Fatal(err)
+		}
+		addrs, err := ief.Addrs()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		localAddr := &net.TCPAddr{
+			IP: addrs[0].(*net.IPNet).IP,
+		}
+
+		dialer.LocalAddr = localAddr
+	}
+
+	socket, err := dialer.Dial("udp", destination.String())
+
 	if err != nil {
 		return nil, err
 	}

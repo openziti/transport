@@ -21,6 +21,7 @@ import (
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/foundation/identity/identity"
 	"github.com/openziti/transport"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"time"
 )
@@ -29,6 +30,46 @@ func Dial(destination, name string, i *identity.TokenId, timeout time.Duration) 
 	log := pfxlog.Logger()
 
 	socket, err := tls.DialWithDialer(&net.Dialer{Timeout: timeout}, "tcp", destination, i.ClientTLSConfig())
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugf("server provided [%d] certificates", len(socket.ConnectionState().PeerCertificates))
+
+	return &Connection{
+		detail: &transport.ConnectionDetail{
+			Address: "tls:" + destination,
+			InBound: false,
+			Name:    name,
+		},
+		socket: socket,
+	}, nil
+}
+
+func DialWithLocalBinding(destination, name, localBinding string, i *identity.TokenId, timeout time.Duration) (transport.Connection, error) {
+	dialer := net.Dialer{
+		Timeout: timeout,
+	}
+
+	if localBinding != "" {
+		iface, err := transport.ResolveInterface(localBinding)
+
+		if err != nil {
+			return nil, err
+		}
+
+		addrs, err := iface.Addrs()
+
+		if err != nil {
+			return nil, err
+		}
+
+		dialer.LocalAddr = &net.TCPAddr{
+			IP: addrs[0].(*net.IPNet).IP,
+		}
+	}
+
+	socket, err := tls.DialWithDialer(&dialer, "tcp", destination, i.ClientTLSConfig())
 	if err != nil {
 		return nil, err
 	}
