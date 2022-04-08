@@ -92,7 +92,6 @@ func ResolveInterface(toResolve string) (*net.Interface, error) {
 
 	for _, iface := range ifaces {
 		if (iface.Flags & net.FlagUp) == 0 {
-			// TODO:  Do we want to do this?  Should it be a flag to the method? Will a down interface even have an IP?
 			log.Debugf("Interface %s is down, ignoring it for address resolution", iface.Name)
 			continue
 		}
