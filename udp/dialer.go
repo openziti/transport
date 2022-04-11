@@ -18,6 +18,8 @@ package udp
 
 import (
 	"bufio"
+	"errors"
+	"fmt"
 	"github.com/openziti/foundation/identity/identity"
 	"github.com/openziti/transport"
 	"math"
@@ -43,7 +45,7 @@ func Dial(destination *net.UDPAddr, name string, _ *identity.TokenId, timeout ti
 }
 
 func DialWithLocalBinding(destination *net.UDPAddr, name, localBinding string, timeout time.Duration) (transport.Connection, error) {
-	dialer := net.Dialer{
+	dialer := &net.Dialer{
 		Timeout: timeout,
 	}
 
@@ -58,7 +60,11 @@ func DialWithLocalBinding(destination *net.UDPAddr, name, localBinding string, t
 			return nil, err
 		}
 
-		dialer.LocalAddr = &net.TCPAddr{
+		if len(addrs) == 0 {
+			return nil, errors.New(fmt.Sprintf("no ip addresses assigned to interface %s", localBinding))
+		}
+
+		dialer.LocalAddr = &net.UDPAddr{
 			IP: addrs[0].(*net.IPNet).IP,
 		}
 	}
