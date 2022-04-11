@@ -18,8 +18,6 @@ package tls
 
 import (
 	"crypto/tls"
-	"errors"
-	"fmt"
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/foundation/identity/identity"
 	"github.com/openziti/transport"
@@ -49,30 +47,10 @@ func Dial(destination, name string, i *identity.TokenId, timeout time.Duration) 
 }
 
 func DialWithLocalBinding(destination, name, localBinding string, i *identity.TokenId, timeout time.Duration) (transport.Connection, error) {
-	dialer := &net.Dialer{
-		Timeout: timeout,
-	}
+	dialer, err := transport.NewDialerWithLocalBinding("tcp", timeout, localBinding)
 
-	if localBinding != "" {
-		iface, err := transport.ResolveInterface(localBinding)
-
-		if err != nil {
-			return nil, err
-		}
-
-		addrs, err := iface.Addrs()
-
-		if err != nil {
-			return nil, err
-		}
-
-		if len(addrs) == 0 {
-			return nil, errors.New(fmt.Sprintf("no ip addresses assigned to interface %s", localBinding))
-		}
-
-		dialer.LocalAddr = &net.TCPAddr{
-			IP: addrs[0].(*net.IPNet).IP,
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	socket, err := tls.DialWithDialer(dialer, "tcp", destination, i.ClientTLSConfig())

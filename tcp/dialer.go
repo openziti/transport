@@ -17,8 +17,6 @@
 package tcp
 
 import (
-	"errors"
-	"fmt"
 	"github.com/openziti/transport"
 	"net"
 	"time"
@@ -41,28 +39,11 @@ func Dial(destination, name string, timeout time.Duration) (transport.Connection
 }
 
 func DialWithLocalBinding(destination, name, localBinding string, timeout time.Duration) (transport.Connection, error) {
-	dialer := &net.Dialer{
-		Timeout: timeout,
-	}
 
-	if localBinding != "" && localBinding != "default" {
-		iface, err := transport.ResolveInterface(localBinding)
+	dialer, err := transport.NewDialerWithLocalBinding("tcp", timeout, localBinding)
 
-		if err != nil {
-			return nil, err
-		}
-		addrs, err := iface.Addrs()
-		if err != nil {
-			return nil, err
-		}
-
-		if len(addrs) == 0 {
-			return nil, errors.New(fmt.Sprintf("no ip addresses assigned to interface %s", localBinding))
-		}
-
-		dialer.LocalAddr = &net.TCPAddr{
-			IP: addrs[0].(*net.IPNet).IP,
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	socket, err := dialer.Dial("tcp", destination)
