@@ -27,5 +27,5 @@ func Dial(destination, name string) (transport.Connection, error) {
 
 // Dial is unsupported for ws transport
 func DialWithLocalBinding(destination, name string, localBinding string) (transport.Connection, error) {
-	panic("Dial is unsupported for ws transport")
+	panic("Dial is unsupported for wss transport")
 }
