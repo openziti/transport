@@ -20,6 +20,7 @@ import (
 	"crypto/tls"
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/foundation/identity/identity"
+	"github.com/openziti/foundation/util/concurrenz"
 	"github.com/openziti/transport"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -27,24 +28,48 @@ import (
 )
 
 func Listen(bindAddress, name string, i *identity.TokenId, incoming chan transport.Connection) (io.Closer, error) {
-	log := pfxlog.ContextLogger(name + "/tls:" + bindAddress)
+	log := pfxlog.ContextLogger(name + "/tls:" + bindAddress).Entry
 
 	listener, err := tls.Listen("tcp", bindAddress, i.ServerTLSConfig())
 	if err != nil {
 		return nil, err
 	}
 
-	go acceptLoop(log.Entry, name, listener, incoming)
+	result := &acceptor{
+		name:     name,
+		listener: listener,
+		incoming: incoming,
+	}
 
-	return listener, nil
+	go result.acceptLoop(log)
+
+	return result, nil
 }
 
-func acceptLoop(log *logrus.Entry, name string, listener net.Listener, incoming chan transport.Connection) {
-	defer log.Error("exited")
+type acceptor struct {
+	name     string
+	listener net.Listener
+	incoming chan transport.Connection
+	closed   concurrenz.AtomicBoolean
+}
 
-	for {
-		socket, err := listener.Accept()
+func (self *acceptor) Close() error {
+	if self.closed.CompareAndSwap(false, true) {
+		return self.listener.Close()
+	}
+	return nil
+}
+
+func (self *acceptor) acceptLoop(log *logrus.Entry) {
+	defer log.Info("exited")
+
+	for !self.closed.Get() {
+		socket, err := self.listener.Accept()
 		if err != nil {
+			if self.closed.Get() {
+				log.WithField("err", err).Info("listener closed, exiting")
+				return
+			}
 			if netErr, ok := err.(net.Error); ok && !netErr.Temporary() {
 				log.WithField("err", err).Error("accept failed. Failure not recoverable. Exiting listen loop")
 				return
@@ -55,11 +80,11 @@ func acceptLoop(log *logrus.Entry, name string, listener net.Listener, incoming 
 				detail: &transport.ConnectionDetail{
 					Address: "tls:" + socket.RemoteAddr().String(),
 					InBound: true,
-					Name:    name,
+					Name:    self.name,
 				},
 				socket: socket.(*tls.Conn),
 			}
-			incoming <- connection
+			self.incoming <- connection
 		}
 	}
 }
