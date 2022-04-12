@@ -37,3 +37,27 @@ func Dial(destination, name string, timeout time.Duration) (transport.Connection
 		socket: socket,
 	}, nil
 }
+
+func DialWithLocalBinding(destination, name, localBinding string, timeout time.Duration) (transport.Connection, error) {
+
+	dialer, err := transport.NewDialerWithLocalBinding("tcp", timeout, localBinding)
+
+	if err != nil {
+		return nil, err
+	}
+
+	socket, err := dialer.Dial("tcp", destination)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &Connection{
+		detail: &transport.ConnectionDetail{
+			Address: "tcp:" + destination,
+			InBound: false,
+			Name:    name,
+		},
+		socket: socket,
+	}, nil
+}

@@ -51,6 +51,22 @@ func (self address) Dial(name string, id *identity.TokenId, _ time.Duration, tcf
 	return Dial(endpoint, name, id, subc)
 }
 
+func (self address) DialWithLocalBinding(name string, localBinding string, id *identity.TokenId, _ time.Duration, tcfg transport.Configuration) (transport.Connection, error) {
+	endpoint, err := net.ResolveUDPAddr("udp", self.bindableAddress())
+	if err != nil {
+		return nil, errors.Wrap(err, "resolve udp")
+	}
+	var subc map[interface{}]interface{}
+	if tcfg != nil {
+		if v, found := tcfg["westworld3"]; found {
+			if subv, ok := v.(map[interface{}]interface{}); ok {
+				subc = subv
+			}
+		}
+	}
+	return DialWithLocalBinding(endpoint, name, localBinding, id, subc)
+}
+
 func (self address) Listen(name string, id *identity.TokenId, incoming chan transport.Connection, tcfg transport.Configuration) (io.Closer, error) {
 	bind, err := net.ResolveUDPAddr("udp", self.bindableAddress())
 	if err != nil {

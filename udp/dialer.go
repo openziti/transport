@@ -41,3 +41,27 @@ func Dial(destination *net.UDPAddr, name string, _ *identity.TokenId, timeout ti
 		reader: bufio.NewReaderSize(socket, math.MaxUint16),
 	}, nil
 }
+
+func DialWithLocalBinding(destination *net.UDPAddr, name, localBinding string, timeout time.Duration) (transport.Connection, error) {
+	dialer, err := transport.NewDialerWithLocalBinding("udp", timeout, localBinding)
+
+	if err != nil {
+		return nil, err
+	}
+
+	socket, err := dialer.Dial("udp", destination.String())
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &Connection{
+		detail: &transport.ConnectionDetail{
+			Address: "udp:" + destination.String(),
+			InBound: false,
+			Name:    name,
+		},
+		socket: socket,
+		reader: bufio.NewReaderSize(socket, math.MaxUint16),
+	}, nil
+}
