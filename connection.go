@@ -18,9 +18,7 @@ package transport
 
 import (
 	"crypto/x509"
-	"io"
 	"net"
-	"time"
 )
 
 type ConnectionDetail struct {
@@ -46,17 +44,9 @@ func (cd *ConnectionDetail) String() string {
 	return out
 }
 
-// Connection represents an abstract connection (ingress or egress).
-//
-type Connection interface {
+// Conn represents an abstract connection
+type Conn interface {
 	Detail() *ConnectionDetail
 	PeerCertificates() []*x509.Certificate
-	Reader() io.Reader
-	Writer() io.Writer
-	Conn() net.Conn
-	SetReadTimeout(t time.Duration) error
-	ClearReadTimeout() error
-	SetWriteTimeout(t time.Duration) error
-	ClearWriteTimeout() error
-	io.Closer
+	net.Conn
 }

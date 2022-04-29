@@ -21,7 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -31,13 +31,13 @@ import (
 var upgrader = websocket.Upgrader{}
 
 type wsListener struct {
-	log      *logrus.Entry
-	incoming chan transport.Connection
-	cfg      *WSConfig
+	log     *logrus.Entry
+	acceptF func(transport.Conn)
+	cfg     *WSConfig
 }
 
 /**
- *	Accept incoming HTTP connection, and upgrade it to a websocket suitable for comms between ziti-sdk-js and Ziti Edge Router
+ *	Accept acceptF HTTP connection, and upgrade it to a websocket suitable for comms between ziti-sdk-js and Ziti Edge Router
  */
 func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	log := listener.log
@@ -63,18 +63,17 @@ func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Reque
 			tlstxbuf: newSafeBuffer(log),
 			done:     make(chan struct{}),
 			cfg:      listener.cfg,
-			incoming: listener.incoming,
 		}
 
 		err := connection.tlsHandshake() // Do not proceed until the JS client can successfully complete a TLS handshake
 		if err == nil {
 			go connection.pinger()
-			listener.incoming <- connection // pass the Websocket to the goroutine that will validate the HELLO handshake
+			listener.acceptF(connection) // pass the Websocket to the goroutine that will validate the HELLO handshake
 		}
 	}
 }
 
-func Listen(bindAddress string, name string, incoming chan transport.Connection, tcfg transport.Configuration) (io.Closer, error) {
+func Listen(bindAddress string, name string, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
 	log := pfxlog.ContextLogger(name + "/ws:" + bindAddress)
 
 	cfg := NewDefaultWSConfig()
@@ -85,22 +84,22 @@ func Listen(bindAddress string, name string, incoming chan transport.Connection,
 	}
 	logrus.Infof(cfg.Dump())
 
-	go wslistener(log.Entry, bindAddress, cfg, name, incoming)
+	go wslistener(log.Entry, bindAddress, cfg, name, acceptF)
 
 	return nil, nil
 }
 
 /**
- *	The TCP-based listener that accepts incoming HTTP connections that we will upgrade to Websocket connections.
+ *	The TCP-based listener that accepts acceptF HTTP connections that we will upgrade to Websocket connections.
  */
-func wslistener(log *logrus.Entry, bindAddress string, cfg *WSConfig, name string, incoming chan transport.Connection) {
+func wslistener(log *logrus.Entry, bindAddress string, cfg *WSConfig, name string, acceptF func(transport.Conn)) {
 
 	log.Infof("starting HTTP (websocket) server at bindAddress [%s]", bindAddress)
 
 	listener := &wsListener{
-		log:      log,
-		incoming: incoming,
-		cfg:      cfg,
+		log:     log,
+		acceptF: acceptF,
+		cfg:     cfg,
 	}
 
 	// Set up the HTTP -> Websocket upgrader options (once, before we start listening)

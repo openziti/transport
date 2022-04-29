@@ -31,10 +31,10 @@ type Configuration map[interface{}]interface{}
 // Address implements the functionality provided by a generic "address".
 //
 type Address interface {
-	Dial(name string, i *identity.TokenId, timeout time.Duration, tcfg Configuration) (Connection, error)
-	DialWithLocalBinding(name string, binding string, i *identity.TokenId, timeout time.Duration, tcfg Configuration) (Connection, error)
-	Listen(name string, i *identity.TokenId, incoming chan Connection, tcfg Configuration) (io.Closer, error)
-	MustListen(name string, i *identity.TokenId, incoming chan Connection, tcfg Configuration) io.Closer
+	Dial(name string, i *identity.TokenId, timeout time.Duration, tcfg Configuration) (Conn, error)
+	DialWithLocalBinding(name string, binding string, i *identity.TokenId, timeout time.Duration, tcfg Configuration) (Conn, error)
+	Listen(name string, i *identity.TokenId, acceptF func(Conn), tcfg Configuration) (io.Closer, error)
+	MustListen(name string, i *identity.TokenId, acceptF func(Conn), tcfg Configuration) io.Closer
 	String() string
 	Type() string
 }

@@ -20,13 +20,13 @@ import (
 	"crypto/tls"
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/foundation/identity/identity"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"time"
 )
 
-func Dial(destination, name string, i *identity.TokenId, timeout time.Duration) (transport.Connection, error) {
+func Dial(destination, name string, i *identity.TokenId, timeout time.Duration) (transport.Conn, error) {
 	log := pfxlog.Logger()
 
 	socket, err := tls.DialWithDialer(&net.Dialer{Timeout: timeout}, "tcp", destination, i.ClientTLSConfig())
@@ -42,11 +42,11 @@ func Dial(destination, name string, i *identity.TokenId, timeout time.Duration) 
 			InBound: false,
 			Name:    name,
 		},
-		socket: socket,
+		Conn: socket,
 	}, nil
 }
 
-func DialWithLocalBinding(destination, name, localBinding string, i *identity.TokenId, timeout time.Duration) (transport.Connection, error) {
+func DialWithLocalBinding(destination, name, localBinding string, i *identity.TokenId, timeout time.Duration) (transport.Conn, error) {
 	dialer, err := transport.NewDialerWithLocalBinding("tcp", timeout, localBinding)
 
 	if err != nil {
@@ -66,6 +66,6 @@ func DialWithLocalBinding(destination, name, localBinding string, i *identity.To
 			InBound: false,
 			Name:    name,
 		},
-		socket: socket,
+		Conn: socket,
 	}, nil
 }

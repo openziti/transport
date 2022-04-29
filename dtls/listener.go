@@ -14,23 +14,41 @@
 	limitations under the License.
 */
 
-package tls
+package dtls
 
 import (
+	"context"
 	"crypto/tls"
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/foundation/identity/identity"
 	"github.com/openziti/foundation/util/concurrenz"
 	"github.com/openziti/transport/v2"
+	"github.com/pion/dtls/v2"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net"
+	"time"
 )
 
-func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transport.Conn)) (io.Closer, error) {
-	log := pfxlog.ContextLogger(name + "/tls:" + bindAddress).Entry
+func Listen(addr *address, name string, i *identity.TokenId, acceptF func(transport.Conn)) (io.Closer, error) {
+	if addr.err != nil {
+		return nil, addr.err
+	}
+	log := pfxlog.ContextLogger(name + "/" + addr.String()).Entry
 
-	listener, err := tls.Listen("tcp", bindAddress, i.ServerTLSConfig())
+	cfg := &dtls.Config{
+		Certificates: []tls.Certificate{*i.ServerCert()},
+		//ExtendedMasterSecret: dtls.RequireExtendedMasterSecret,
+		ClientAuth: dtls.RequireAnyClientCert,
+		RootCAs:    i.CA(),
+		//CipherSuites:         tlz.GetCipherSuites(),
+		// Create timeout context for accepted connection.
+		ConnectContextMaker: func() (context.Context, func()) {
+			return context.WithTimeout(context.Background(), 30*time.Second)
+		},
+	}
+
+	listener, err := dtls.Listen("udp", &addr.UDPAddr, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +67,7 @@ func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transpor
 type acceptor struct {
 	name     string
 	listener net.Listener
-	acceptF  func(conn transport.Conn)
+	acceptF  func(transport.Conn)
 	closed   concurrenz.AtomicBoolean
 }
 
@@ -67,24 +85,36 @@ func (self *acceptor) acceptLoop(log *logrus.Entry) {
 		socket, err := self.listener.Accept()
 		if err != nil {
 			if self.closed.Get() {
-				log.WithField("err", err).Info("listener closed, exiting")
+				log.WithError(err).Info("listener closed, exiting")
 				return
 			}
 			if netErr, ok := err.(net.Error); ok && !netErr.Temporary() {
-				log.WithField("err", err).Error("accept failed. Failure not recoverable. Exiting listen loop")
+				log.WithError(err).Error("accept failed. Failure not recoverable. Exiting listen loop")
 				return
 			}
-			log.WithField("err", err).Error("accept failed")
-		} else {
-			connection := &Connection{
-				detail: &transport.ConnectionDetail{
-					Address: "tls:" + socket.RemoteAddr().String(),
-					InBound: true,
-					Name:    self.name,
-				},
-				Conn: socket.(*tls.Conn),
-			}
-			self.acceptF(connection)
+			log.WithError(err).Error("accept failed")
+			continue
 		}
+
+		conn := socket.(*dtls.Conn)
+		certs, err := getPeerCerts(conn)
+		if err != nil {
+			log.WithError(err).Error("unable to parse peer certificates")
+			if err = conn.Close(); err != nil {
+				log.WithError(err).Error("error closing connection")
+			}
+			continue
+		}
+
+		connection := &Connection{
+			detail: &transport.ConnectionDetail{
+				Address: "dtls:" + socket.RemoteAddr().String(),
+				InBound: true,
+				Name:    self.name,
+			},
+			certs: certs,
+			Conn:  socket.(*dtls.Conn),
+		}
+		self.acceptF(connection)
 	}
 }

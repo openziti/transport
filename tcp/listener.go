@@ -18,13 +18,13 @@ package tcp
 
 import (
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net"
 )
 
-func Listen(bindAddress, name string, incoming chan transport.Connection) (io.Closer, error) {
+func Listen(bindAddress, name string, acceptF func(transport.Conn)) (io.Closer, error) {
 	log := pfxlog.ContextLogger(name + "/tcp:" + bindAddress)
 
 	listener, err := net.Listen("tcp", bindAddress)
@@ -32,12 +32,12 @@ func Listen(bindAddress, name string, incoming chan transport.Connection) (io.Cl
 		return nil, err
 	}
 
-	go acceptLoop(log.Entry, name, listener, incoming)
+	go acceptLoop(log.Entry, name, listener, acceptF)
 
 	return listener, nil
 }
 
-func acceptLoop(log *logrus.Entry, name string, listener net.Listener, incoming chan transport.Connection) {
+func acceptLoop(log *logrus.Entry, name string, listener net.Listener, acceptF func(transport.Conn)) {
 	defer log.Error("exited")
 
 	for {
@@ -56,9 +56,9 @@ func acceptLoop(log *logrus.Entry, name string, listener net.Listener, incoming 
 					InBound: true,
 					Name:    name,
 				},
-				socket: socket,
+				Conn: socket,
 			}
-			incoming <- connection
+			acceptF(connection)
 
 			log.WithField("addr", socket.RemoteAddr().String()).Info("accepted connection")
 		}

@@ -21,7 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -31,13 +31,13 @@ import (
 var upgrader = websocket.Upgrader{}
 
 type wssListener struct {
-	log      *logrus.Entry
-	incoming chan transport.Connection
-	cfg      *WSSConfig
+	log     *logrus.Entry
+	acceptF func(transport.Conn)
+	cfg     *WSSConfig
 }
 
 /**
- *	Accept incoming HTTP connection, and upgrade it to a websocket suitable for comms between browZer and Ziti Edge Router
+ *	Accept acceptF HTTP connection, and upgrade it to a websocket suitable for comms between browZer and Ziti Edge Router
  */
 func (listener *wssListener) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	log := listener.log
@@ -65,11 +65,11 @@ func (listener *wssListener) handleWebsocket(w http.ResponseWriter, r *http.Requ
 
 		go connection.pinger()
 
-		listener.incoming <- connection // pass the Websocket to the goroutine that will validate the HELLO handshake
+		listener.acceptF(connection) // pass the Websocket to the goroutine that will validate the HELLO handshake
 	}
 }
 
-func Listen(bindAddress string, name string, incoming chan transport.Connection, tcfg transport.Configuration) (io.Closer, error) {
+func Listen(bindAddress string, name string, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
 	log := pfxlog.ContextLogger(name + "/wss:" + bindAddress)
 
 	cfg := NewDefaultWSSConfig()
@@ -80,22 +80,22 @@ func Listen(bindAddress string, name string, incoming chan transport.Connection,
 	}
 	logrus.Infof(cfg.Dump())
 
-	go wsslistener(log.Entry, bindAddress, cfg, name, incoming)
+	go wsslistener(log.Entry, bindAddress, cfg, name, acceptF)
 
 	return nil, nil
 }
 
 /**
- *	The TLS-based listener that accepts incoming HTTP connections that we will upgrade to Websocket connections
+ *	The TLS-based listener that accepts acceptF HTTP connections that we will upgrade to Websocket connections
  */
-func wsslistener(log *logrus.Entry, bindAddress string, cfg *WSSConfig, name string, incoming chan transport.Connection) {
+func wsslistener(log *logrus.Entry, bindAddress string, cfg *WSSConfig, name string, acceptF func(transport.Conn)) {
 
 	log.Infof("starting HTTP (websocket) server at bindAddress [%s]", bindAddress)
 
 	listener := &wssListener{
-		log:      log,
-		incoming: incoming,
-		cfg:      cfg,
+		log:     log,
+		acceptF: acceptF,
+		cfg:     cfg,
 	}
 
 	// Set up the HTTP -> Websocket upgrader options (once, before we start listening)

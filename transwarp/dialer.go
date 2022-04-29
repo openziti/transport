@@ -19,13 +19,13 @@ package transwarp
 import (
 	"github.com/openziti/dilithium/cf"
 	"github.com/openziti/dilithium/protocol/westworld3"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"net"
 )
 
-func Dial(endpoint *net.UDPAddr, name string, tcfg transport.Configuration) (transport.Connection, error) {
+func Dial(endpoint *net.UDPAddr, name string, tcfg transport.Configuration) (transport.Conn, error) {
 	profileId := byte(0)
 	if tcfg != nil {
 		profile := westworld3.NewBaselineProfile()
@@ -50,11 +50,11 @@ func Dial(endpoint *net.UDPAddr, name string, tcfg transport.Configuration) (tra
 			InBound: false,
 			Name:    name,
 		},
-		socket: socket,
+		Conn: socket,
 	}, nil
 }
 
-func DialWithLocalBinding(endpoint *net.UDPAddr, name, localBinding string, tcfg transport.Configuration) (transport.Connection, error) {
+func DialWithLocalBinding(endpoint *net.UDPAddr, name, localBinding string, tcfg transport.Configuration) (transport.Conn, error) {
 	logrus.Warn("Local interface binding is not yet supported with transwarp. Dialing on the default interface")
 	return Dial(endpoint, name, tcfg)
 }

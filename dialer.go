@@ -23,14 +23,36 @@ import (
 	"time"
 )
 
-// Creates a dialer and sets the local ip used for dialing
-//
+// NewDialerWithLocalBinding creates a dialer and sets the local ip used for dialing
 func NewDialerWithLocalBinding(addressType string, timeout time.Duration, localBinding string) (*net.Dialer, error) {
-
 	dialer := &net.Dialer{
 		Timeout: timeout,
 	}
 
+	ip, err := ResolveLocalBinding(localBinding)
+	if err != nil {
+		return nil, err
+	}
+
+	if ip != nil {
+		switch addressType {
+		case "udp":
+			dialer.LocalAddr = &net.UDPAddr{
+				IP: ip,
+			}
+		case "tcp", "tls":
+			dialer.LocalAddr = &net.TCPAddr{
+				IP: ip,
+			}
+		default:
+			return nil, errors.New(fmt.Sprintf("Unsupported addressType: %s", addressType))
+		}
+	}
+
+	return dialer, nil
+}
+
+func ResolveLocalBinding(localBinding string) (net.IP, error) {
 	if localBinding != "" {
 		iface, err := ResolveInterface(localBinding)
 
@@ -48,19 +70,8 @@ func NewDialerWithLocalBinding(addressType string, timeout time.Duration, localB
 			return nil, errors.New(fmt.Sprintf("no ip addresses assigned to interface %s", localBinding))
 		}
 
-		switch addressType {
-		case "udp":
-			dialer.LocalAddr = &net.UDPAddr{
-				IP: addrs[0].(*net.IPNet).IP,
-			}
-		case "tcp", "tls":
-			dialer.LocalAddr = &net.TCPAddr{
-				IP: addrs[0].(*net.IPNet).IP,
-			}
-		default:
-			return nil, errors.New(fmt.Sprintf("Unsupported addressType: %s", addressType))
-		}
+		return addrs[0].(*net.IPNet).IP, nil
 	}
 
-	return dialer, nil
+	return nil, nil
 }

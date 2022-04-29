@@ -22,7 +22,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"github.com/gorilla/websocket"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
@@ -143,7 +143,6 @@ type Connection struct {
 	rmutex                   sync.Mutex
 	tlswmutex                sync.Mutex
 	tlsrmutex                sync.Mutex
-	incoming                 chan transport.Connection
 	readCallDepth            int32
 	writeCallDepth           int32
 }
@@ -404,41 +403,6 @@ func (self *Connection) PeerCertificates() []*x509.Certificate {
 	} else {
 		return nil
 	}
-}
-
-func (self *Connection) Reader() io.Reader {
-	return self
-}
-
-func (self *Connection) Writer() io.Writer {
-	return self
-}
-
-func (self *Connection) Conn() net.Conn {
-	self.log.Debug("Conn() entered, returning TLS connection that wraps the websocket")
-	return self.tlsConn // Obtain the TLS connection that wraps the websocket
-}
-
-func (self *Connection) SetReadTimeout(t time.Duration) error {
-	return self.ws.UnderlyingConn().SetReadDeadline(time.Now().Add(t))
-}
-
-func (self *Connection) SetWriteTimeout(t time.Duration) error {
-	return self.ws.UnderlyingConn().SetWriteDeadline(time.Now().Add(t))
-}
-
-// ClearReadTimeout clears the read time for all current and future reads
-//
-func (self *Connection) ClearReadTimeout() error {
-	var zero time.Time
-	return self.ws.UnderlyingConn().SetReadDeadline(zero)
-}
-
-// ClearWriteTimeout clears the write timeout for all current and future writes
-//
-func (self *Connection) ClearWriteTimeout() error {
-	var zero time.Time
-	return self.ws.UnderlyingConn().SetWriteDeadline(zero)
 }
 
 func (self *Connection) LocalAddr() net.Addr {

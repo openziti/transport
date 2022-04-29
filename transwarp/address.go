@@ -19,7 +19,7 @@ package transwarp
 import (
 	"fmt"
 	"github.com/openziti/foundation/identity/identity"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
 	"io"
 	"net"
@@ -35,7 +35,7 @@ type address struct {
 	port     uint16
 }
 
-func (self address) Dial(name string, _ *identity.TokenId, _ time.Duration, tcfg transport.Configuration) (transport.Connection, error) {
+func (self address) Dial(name string, _ *identity.TokenId, _ time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
 	endpoint, err := net.ResolveUDPAddr("udp", self.bindableAddress())
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve udp")
@@ -51,7 +51,7 @@ func (self address) Dial(name string, _ *identity.TokenId, _ time.Duration, tcfg
 	return Dial(endpoint, name, subc)
 }
 
-func (self address) DialWithLocalBinding(name string, localBinding string, _ *identity.TokenId, _ time.Duration, tcfg transport.Configuration) (transport.Connection, error) {
+func (self address) DialWithLocalBinding(name string, localBinding string, _ *identity.TokenId, _ time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
 	endpoint, err := net.ResolveUDPAddr("udp", self.bindableAddress())
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve udp")
@@ -68,7 +68,7 @@ func (self address) DialWithLocalBinding(name string, localBinding string, _ *id
 	return DialWithLocalBinding(endpoint, name, localBinding, subc)
 }
 
-func (self address) Listen(name string, _ *identity.TokenId, incoming chan transport.Connection, tcfg transport.Configuration) (io.Closer, error) {
+func (self address) Listen(name string, _ *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
 	bind, err := net.ResolveUDPAddr("udp", self.bindableAddress())
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve udp")
@@ -81,11 +81,11 @@ func (self address) Listen(name string, _ *identity.TokenId, incoming chan trans
 			}
 		}
 	}
-	return Listen(bind, name, incoming, subc)
+	return Listen(bind, name, acceptF, subc)
 }
 
-func (self address) MustListen(name string, i *identity.TokenId, incoming chan transport.Connection, tcfg transport.Configuration) io.Closer {
-	closer, err := self.Listen(name, i, incoming, tcfg)
+func (self address) MustListen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) io.Closer {
+	closer, err := self.Listen(name, i, acceptF, tcfg)
 	if err != nil {
 		panic(err)
 	}
