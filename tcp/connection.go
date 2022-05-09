@@ -18,15 +18,13 @@ package tcp
 
 import (
 	"crypto/x509"
-	"github.com/openziti/transport"
-	"io"
+	"github.com/openziti/transport/v2"
 	"net"
-	"time"
 )
 
 type Connection struct {
 	detail *transport.ConnectionDetail
-	socket net.Conn
+	net.Conn
 }
 
 func (self *Connection) Detail() *transport.ConnectionDetail {
@@ -35,42 +33,4 @@ func (self *Connection) Detail() *transport.ConnectionDetail {
 
 func (self *Connection) PeerCertificates() []*x509.Certificate {
 	return nil
-}
-
-func (self *Connection) Reader() io.Reader {
-	return self.socket
-}
-
-func (self *Connection) Writer() io.Writer {
-	return self.socket
-}
-
-func (self *Connection) Conn() net.Conn {
-	return self.socket
-}
-
-func (self *Connection) SetReadTimeout(t time.Duration) error {
-	return self.socket.SetReadDeadline(time.Now().Add(t))
-}
-
-func (self *Connection) SetWriteTimeout(t time.Duration) error {
-	return self.socket.SetWriteDeadline(time.Now().Add(t))
-}
-
-// ClearReadTimeout clears the read time for all current and future reads
-//
-func (self *Connection) ClearReadTimeout() error {
-	var zero time.Time
-	return self.socket.SetReadDeadline(zero)
-}
-
-// ClearWriteTimeout clears the write timeout for all current and future writes
-//
-func (self *Connection) ClearWriteTimeout() error {
-	var zero time.Time
-	return self.socket.SetWriteDeadline(zero)
-}
-
-func (self *Connection) Close() error {
-	return self.socket.Close()
 }

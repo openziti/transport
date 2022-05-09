@@ -20,15 +20,15 @@ import (
 	"bufio"
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/foundation/identity/identity"
-	"github.com/openziti/transport"
 	udp2 "github.com/openziti/foundation/udp"
+	"github.com/openziti/transport/v2"
 	"github.com/sirupsen/logrus"
 	"io"
 	"math"
 	"net"
 )
 
-func Listen(bindAddress *net.UDPAddr, name string, i *identity.TokenId, incoming chan transport.Connection) (io.Closer, error) {
+func Listen(bindAddress *net.UDPAddr, name string, i *identity.TokenId, acceptF func(transport.Conn)) (io.Closer, error) {
 	log := pfxlog.ContextLogger(name + "/udp:" + bindAddress.String())
 
 	listener, err := udp2.Listen("udp", bindAddress)
@@ -36,12 +36,12 @@ func Listen(bindAddress *net.UDPAddr, name string, i *identity.TokenId, incoming
 		return nil, err
 	}
 
-	go acceptLoop(log.Entry, name, listener, incoming)
+	go acceptLoop(log.Entry, name, listener, acceptF)
 
 	return listener, nil
 }
 
-func acceptLoop(log *logrus.Entry, name string, listener net.Listener, incoming chan transport.Connection) {
+func acceptLoop(log *logrus.Entry, name string, listener net.Listener, acceptF func(transport.Conn)) {
 	defer log.Error("exited")
 
 	for {
@@ -60,10 +60,10 @@ func acceptLoop(log *logrus.Entry, name string, listener net.Listener, incoming 
 					InBound: true,
 					Name:    name,
 				},
-				socket: socket,
+				Conn:   socket,
 				reader: bufio.NewReaderSize(socket, math.MaxUint16),
 			}
-			incoming <- connection
+			acceptF(connection)
 		}
 	}
 }

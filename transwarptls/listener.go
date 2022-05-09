@@ -22,14 +22,14 @@ import (
 	"github.com/openziti/dilithium/protocol/westlsworld3"
 	"github.com/openziti/dilithium/protocol/westworld3"
 	"github.com/openziti/foundation/identity/identity"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net"
 )
 
-func Listen(bind *net.UDPAddr, name string, id *identity.TokenId, incoming chan transport.Connection, tcfg transport.Configuration) (io.Closer, error) {
+func Listen(bind *net.UDPAddr, name string, id *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
 	log := pfxlog.ContextLogger(name + "/transwarptls:" + bind.String())
 
 	profileId := byte(0)
@@ -51,12 +51,12 @@ func Listen(bind *net.UDPAddr, name string, id *identity.TokenId, incoming chan 
 		return nil, err
 	}
 
-	go acceptLoop(log.Entry, name, listener, incoming)
+	go acceptLoop(log.Entry, name, listener, acceptF)
 
 	return listener, nil
 }
 
-func acceptLoop(log *logrus.Entry, name string, listener net.Listener, incoming chan transport.Connection) {
+func acceptLoop(log *logrus.Entry, name string, listener net.Listener, acceptF func(transport.Conn)) {
 	defer log.Error("exited")
 
 	for {
@@ -75,9 +75,9 @@ func acceptLoop(log *logrus.Entry, name string, listener net.Listener, incoming 
 					InBound: true,
 					Name:    name,
 				},
-				socket: socket,
+				Conn: socket,
 			}
-			incoming <- connection
+			acceptF(connection)
 
 			log.WithField("addr", socket.RemoteAddr().String()).Info("accepted connection")
 		}

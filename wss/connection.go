@@ -22,7 +22,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"github.com/gorilla/websocket"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net"
@@ -80,6 +80,26 @@ type Connection struct {
 	done   chan struct{}
 	wmutex sync.Mutex
 	rmutex sync.Mutex
+}
+
+func (c *Connection) LocalAddr() net.Addr {
+	return c.ws.LocalAddr()
+}
+
+func (c *Connection) RemoteAddr() net.Addr {
+	return c.ws.RemoteAddr()
+}
+
+func (c *Connection) SetDeadline(t time.Time) error {
+	return c.ws.UnderlyingConn().SetDeadline(t)
+}
+
+func (c *Connection) SetReadDeadline(t time.Time) error {
+	return c.ws.SetReadDeadline(t)
+}
+
+func (c *Connection) SetWriteDeadline(t time.Time) error {
+	return c.ws.SetWriteDeadline(t)
 }
 
 // Read implements io.Reader by wrapping websocket messages in a buffer.
@@ -187,39 +207,4 @@ func (self *Connection) Detail() *transport.ConnectionDetail {
 func (self *Connection) PeerCertificates() []*x509.Certificate {
 	var tlsConn (*tls.Conn) = self.ws.UnderlyingConn().(*tls.Conn)
 	return tlsConn.ConnectionState().PeerCertificates
-}
-
-func (self *Connection) Reader() io.Reader {
-	return self
-}
-
-func (self *Connection) Writer() io.Writer {
-	return self
-}
-
-func (self *Connection) Conn() net.Conn {
-	return self.ws.UnderlyingConn() // Obtain the socket underneath the websocket
-
-}
-
-func (self *Connection) SetReadTimeout(t time.Duration) error {
-	return self.ws.UnderlyingConn().SetReadDeadline(time.Now().Add(t))
-}
-
-func (self *Connection) SetWriteTimeout(t time.Duration) error {
-	return self.ws.UnderlyingConn().SetWriteDeadline(time.Now().Add(t))
-}
-
-// ClearReadTimeout clears the read time for all current and future reads
-//
-func (self *Connection) ClearReadTimeout() error {
-	var zero time.Time
-	return self.ws.UnderlyingConn().SetReadDeadline(zero)
-}
-
-// ClearWriteTimeout clears the write timeout for all current and future writes
-//
-func (self *Connection) ClearWriteTimeout() error {
-	var zero time.Time
-	return self.ws.UnderlyingConn().SetWriteDeadline(zero)
 }

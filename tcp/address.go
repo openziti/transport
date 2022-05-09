@@ -20,34 +20,34 @@ import (
 	"errors"
 	"fmt"
 	"github.com/openziti/foundation/identity/identity"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"io"
 	"strconv"
 	"strings"
 	"time"
 )
 
-var _ transport.Address = (*address)(nil) // enforce that address implements transport.Address
+var _ transport.Address = &address{} // enforce that address implements transport.Address
 
 type address struct {
 	hostname string
 	port     uint16
 }
 
-func (a address) Dial(name string, i *identity.TokenId, timeout time.Duration, _ transport.Configuration) (transport.Connection, error) {
+func (a address) Dial(name string, i *identity.TokenId, timeout time.Duration, _ transport.Configuration) (transport.Conn, error) {
 	return Dial(a.bindableAddress(), name, timeout)
 }
 
-func (a address) DialWithLocalBinding(name string, localBinding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Connection, error) {
+func (a address) DialWithLocalBinding(name string, localBinding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
 	return DialWithLocalBinding(a.bindableAddress(), name, localBinding, timeout)
 }
 
-func (a address) Listen(name string, i *identity.TokenId, incoming chan transport.Connection, _ transport.Configuration) (io.Closer, error) {
-	return Listen(a.bindableAddress(), name, incoming)
+func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), _ transport.Configuration) (io.Closer, error) {
+	return Listen(a.bindableAddress(), name, acceptF)
 }
 
-func (a address) MustListen(name string, i *identity.TokenId, incoming chan transport.Connection, tcfg transport.Configuration) io.Closer {
-	closer, err := a.Listen(name, i, incoming, tcfg)
+func (a address) MustListen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) io.Closer {
+	closer, err := a.Listen(name, i, acceptF, tcfg)
 	if err != nil {
 		panic(err)
 	}

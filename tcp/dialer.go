@@ -17,12 +17,12 @@
 package tcp
 
 import (
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"net"
 	"time"
 )
 
-func Dial(destination, name string, timeout time.Duration) (transport.Connection, error) {
+func Dial(destination, name string, timeout time.Duration) (transport.Conn, error) {
 	socket, err := net.DialTimeout("tcp", destination, timeout)
 	if err != nil {
 		return nil, err
@@ -34,11 +34,11 @@ func Dial(destination, name string, timeout time.Duration) (transport.Connection
 			InBound: false,
 			Name:    name,
 		},
-		socket: socket,
+		Conn: socket,
 	}, nil
 }
 
-func DialWithLocalBinding(destination, name, localBinding string, timeout time.Duration) (transport.Connection, error) {
+func DialWithLocalBinding(destination, name, localBinding string, timeout time.Duration) (transport.Conn, error) {
 
 	dialer, err := transport.NewDialerWithLocalBinding("tcp", timeout, localBinding)
 
@@ -58,6 +58,6 @@ func DialWithLocalBinding(destination, name, localBinding string, timeout time.D
 			InBound: false,
 			Name:    name,
 		},
-		socket: socket,
+		Conn: socket,
 	}, nil
 }

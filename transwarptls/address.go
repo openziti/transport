@@ -19,7 +19,7 @@ package transwarptls
 import (
 	"fmt"
 	"github.com/openziti/foundation/identity/identity"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
 	"io"
 	"net"
@@ -28,14 +28,14 @@ import (
 	"time"
 )
 
-var _ transport.Address = (*address)(nil) // enforce that address implements transport.Address
+var _ transport.Address = &address{} // enforce that address implements transport.Address
 
 type address struct {
 	hostname string
 	port     uint16
 }
 
-func (self address) Dial(name string, id *identity.TokenId, _ time.Duration, tcfg transport.Configuration) (transport.Connection, error) {
+func (self address) Dial(name string, id *identity.TokenId, _ time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
 	endpoint, err := net.ResolveUDPAddr("udp", self.bindableAddress())
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve udp")
@@ -51,7 +51,7 @@ func (self address) Dial(name string, id *identity.TokenId, _ time.Duration, tcf
 	return Dial(endpoint, name, id, subc)
 }
 
-func (self address) DialWithLocalBinding(name string, localBinding string, id *identity.TokenId, _ time.Duration, tcfg transport.Configuration) (transport.Connection, error) {
+func (self address) DialWithLocalBinding(name string, localBinding string, id *identity.TokenId, _ time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
 	endpoint, err := net.ResolveUDPAddr("udp", self.bindableAddress())
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve udp")
@@ -67,7 +67,7 @@ func (self address) DialWithLocalBinding(name string, localBinding string, id *i
 	return DialWithLocalBinding(endpoint, name, localBinding, id, subc)
 }
 
-func (self address) Listen(name string, id *identity.TokenId, incoming chan transport.Connection, tcfg transport.Configuration) (io.Closer, error) {
+func (self address) Listen(name string, id *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
 	bind, err := net.ResolveUDPAddr("udp", self.bindableAddress())
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve udp")
@@ -80,11 +80,11 @@ func (self address) Listen(name string, id *identity.TokenId, incoming chan tran
 			}
 		}
 	}
-	return Listen(bind, name, id, incoming, subc)
+	return Listen(bind, name, id, acceptF, subc)
 }
 
-func (self address) MustListen(name string, id *identity.TokenId, incoming chan transport.Connection, tcfg transport.Configuration) io.Closer {
-	closer, err := self.Listen(name, id, incoming, tcfg)
+func (self address) MustListen(name string, id *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) io.Closer {
+	closer, err := self.Listen(name, id, acceptF, tcfg)
 	if err != nil {
 		panic(err)
 	}

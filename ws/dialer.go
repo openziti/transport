@@ -17,15 +17,15 @@
 package ws
 
 import (
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 )
 
 // Dial is unsupported for ws transport
-func Dial(destination, name string) (transport.Connection, error) {
+func Dial(destination, name string) (transport.Conn, error) {
 	panic("Dial is unsupported for ws transport")
 }
 
 // Dial is unsupported for ws transport
-func DialWithLocalBinding(destination, name string, localBinding string) (transport.Connection, error) {
+func DialWithLocalBinding(destination, name string, localBinding string) (transport.Conn, error) {
 	panic("Dial is unsupported for ws transport")
 }

@@ -14,22 +14,31 @@
 	limitations under the License.
 */
 
-package udp
+package dtls
 
 import (
-	"bytes"
 	"crypto/x509"
-	"fmt"
 	"github.com/openziti/transport/v2"
+	"github.com/pion/dtls/v2"
 	"github.com/pkg/errors"
-	"io"
-	"net"
 )
+
+func getPeerCerts(conn *dtls.Conn) ([]*x509.Certificate, error) {
+	var certs []*x509.Certificate
+	for _, certBytes := range conn.ConnectionState().PeerCertificates {
+		cert, err := x509.ParseCertificate(certBytes)
+		if err != nil {
+			return nil, errors.Wrap(err, "couldn't parse peer cert")
+		}
+		certs = append(certs, cert)
+	}
+	return certs, nil
+}
 
 type Connection struct {
 	detail *transport.ConnectionDetail
-	net.Conn
-	reader io.Reader
+	*dtls.Conn
+	certs []*x509.Certificate
 }
 
 func (self *Connection) Detail() *transport.ConnectionDetail {
@@ -37,35 +46,5 @@ func (self *Connection) Detail() *transport.ConnectionDetail {
 }
 
 func (self *Connection) PeerCertificates() []*x509.Certificate {
-	return nil
-}
-
-func (self *Connection) Read(p []byte) (n int, err error) {
-	return self.reader.Read(p)
-}
-
-type loggingWriter struct{ io.Writer }
-
-func (w loggingWriter) Write(b []byte) (int, error) {
-	fmt.Printf("Wrote: %v byte to underlay\n", len(b))
-	if n, err := w.Writer.Write(b); err != nil {
-		panic(err)
-	} else {
-		return n, nil
-	}
-}
-
-type loggingReader struct{ io.Reader }
-
-func (w loggingReader) Read(b []byte) (int, error) {
-	n, err := w.Reader.Read(b)
-	if err != nil {
-		return n, err
-	}
-	fmt.Printf("Read: %v bytes from underlay\n", n)
-	magicV2 := []byte{0x03, 0x06, 0x09, 0x0c}
-	if len(b) > 20 && bytes.Equal(magicV2, b[:4]) {
-		panic(errors.New("no good"))
-	}
-	return n, err
+	return self.certs
 }

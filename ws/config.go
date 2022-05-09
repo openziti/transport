@@ -2,7 +2,7 @@ package ws
 
 import (
 	"fmt"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
 	"time"
 )

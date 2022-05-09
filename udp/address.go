@@ -20,7 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/openziti/foundation/identity/identity"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"io"
 	"net"
 	"strconv"
@@ -28,14 +28,14 @@ import (
 	"time"
 )
 
-var _ transport.Address = (*address)(nil) // enforce that address implements transport.Address
+var _ transport.Address = &address{} // enforce that address implements transport.Address
 
 type address struct {
 	hostname string
 	port     uint16
 }
 
-func (a address) Dial(name string, i *identity.TokenId, timeout time.Duration, _ transport.Configuration) (transport.Connection, error) {
+func (a address) Dial(name string, i *identity.TokenId, timeout time.Duration, _ transport.Configuration) (transport.Conn, error) {
 	addr, err := a.bindableAddress()
 	if err != nil {
 		return nil, err
@@ -43,7 +43,7 @@ func (a address) Dial(name string, i *identity.TokenId, timeout time.Duration, _
 	return Dial(addr, name, i, timeout)
 }
 
-func (a address) DialWithLocalBinding(name string, localBinding string, _ *identity.TokenId, timeout time.Duration, _ transport.Configuration) (transport.Connection, error) {
+func (a address) DialWithLocalBinding(name string, localBinding string, _ *identity.TokenId, timeout time.Duration, _ transport.Configuration) (transport.Conn, error) {
 	addr, err := a.bindableAddress()
 	if err != nil {
 		return nil, err
@@ -51,16 +51,16 @@ func (a address) DialWithLocalBinding(name string, localBinding string, _ *ident
 	return DialWithLocalBinding(addr, name, localBinding, timeout)
 }
 
-func (a address) Listen(name string, i *identity.TokenId, incoming chan transport.Connection, _ transport.Configuration) (io.Closer, error) {
+func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), _ transport.Configuration) (io.Closer, error) {
 	addr, err := a.bindableAddress()
 	if err != nil {
 		return nil, err
 	}
-	return Listen(addr, name, i, incoming)
+	return Listen(addr, name, i, acceptF)
 }
 
-func (a address) MustListen(name string, i *identity.TokenId, incoming chan transport.Connection, tcfg transport.Configuration) io.Closer {
-	closer, err := a.Listen(name, i, incoming, tcfg)
+func (a address) MustListen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) io.Closer {
+	closer, err := a.Listen(name, i, acceptF, tcfg)
 	if err != nil {
 		panic(err)
 	}

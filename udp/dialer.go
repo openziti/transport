@@ -19,13 +19,13 @@ package udp
 import (
 	"bufio"
 	"github.com/openziti/foundation/identity/identity"
-	"github.com/openziti/transport"
+	"github.com/openziti/transport/v2"
 	"math"
 	"net"
 	"time"
 )
 
-func Dial(destination *net.UDPAddr, name string, _ *identity.TokenId, timeout time.Duration) (transport.Connection, error) {
+func Dial(destination *net.UDPAddr, name string, _ *identity.TokenId, timeout time.Duration) (transport.Conn, error) {
 	socket, err := net.DialTimeout("udp", destination.String(), timeout)
 	if err != nil {
 		return nil, err
@@ -37,12 +37,12 @@ func Dial(destination *net.UDPAddr, name string, _ *identity.TokenId, timeout ti
 			InBound: false,
 			Name:    name,
 		},
-		socket: socket,
+		Conn:   socket,
 		reader: bufio.NewReaderSize(socket, math.MaxUint16),
 	}, nil
 }
 
-func DialWithLocalBinding(destination *net.UDPAddr, name, localBinding string, timeout time.Duration) (transport.Connection, error) {
+func DialWithLocalBinding(destination *net.UDPAddr, name, localBinding string, timeout time.Duration) (transport.Conn, error) {
 	dialer, err := transport.NewDialerWithLocalBinding("udp", timeout, localBinding)
 
 	if err != nil {
@@ -61,7 +61,7 @@ func DialWithLocalBinding(destination *net.UDPAddr, name, localBinding string, t
 			InBound: false,
 			Name:    name,
 		},
-		socket: socket,
+		Conn:   socket,
 		reader: bufio.NewReaderSize(socket, math.MaxUint16),
 	}, nil
 }
