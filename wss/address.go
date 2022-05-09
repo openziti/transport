@@ -27,7 +27,7 @@ import (
 	"time"
 )
 
-var _ transport.Address = (*address)(nil) // enforce that address implements transport.Address
+var _ transport.Address = &address{} // enforce that address implements transport.Address
 
 type address struct {
 	hostname string
