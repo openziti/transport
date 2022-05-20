@@ -2,9 +2,10 @@ package ws
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
-	"time"
 )
 
 type WSConfig struct {
@@ -131,6 +132,7 @@ func (self *WSConfig) Dump() string {
 	out += fmt.Sprintf("\t%-30s %d\n", "readTimeout", self.readTimeout)
 	out += fmt.Sprintf("\t%-30s %d\n", "idleTimeout", self.idleTimeout)
 	out += fmt.Sprintf("\t%-30s %d\n", "pongTimeout", self.pongTimeout)
+	out += fmt.Sprintf("\t%-30s %d\n", "pingInterval", self.pingInterval)
 	out += fmt.Sprintf("\t%-30s %d\n", "handshakeTimeout", self.handshakeTimeout)
 	out += fmt.Sprintf("\t%-30s %d\n", "readBufferSize", self.readBufferSize)
 	out += fmt.Sprintf("\t%-30s %d\n", "writeBufferSize", self.writeBufferSize)

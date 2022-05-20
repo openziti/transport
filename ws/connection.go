@@ -21,15 +21,17 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"github.com/gorilla/websocket"
-	"github.com/openziti/transport/v2"
-	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/openziti/foundation/util/tlz"
+	"github.com/openziti/transport/v2"
+	"github.com/sirupsen/logrus"
 	// _ "unsafe"	// Using go:linkname requires us to import unsafe
 )
 
@@ -145,6 +147,7 @@ type Connection struct {
 	tlsrmutex                sync.Mutex
 	readCallDepth            int32
 	writeCallDepth           int32
+	connid                   int64
 }
 
 // Read implements io.Reader by wrapping websocket messages in a buffer.
@@ -181,17 +184,18 @@ func (c *Connection) Read(p []byte) (n int, err error) {
 			}
 		}
 		if err != nil {
+			c.log.Errorf("Read() connid[%d] ************** err[%v]", c.connid, err)
 			return n, err
 		}
 		_, err = io.Copy(c.rxbuf, r)
 		if err != nil {
+			c.log.Errorf("Read() connid[%d] ************** err[%v]", c.connid, err)
 			return n, err
 		}
+		c.log.Tracef("Read() connid[%d] after io.Copy currentDepth[%d] c.rxbuf.Len[%d]", c.connid, currentDepth, c.rxbuf.Len())
 	}
 
 	atomic.SwapInt32(&c.readCallDepth, (c.readCallDepth - 1))
-
-	c.log.Tracef("Read() end currentDepth[%d]", currentDepth)
 
 	return c.rxbuf.Read(p)
 }
@@ -357,15 +361,32 @@ func (c *Connection) tlsHandshake() error {
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(serverCertPEM)
 
+	tlzCipherSuites := tlz.GetCipherSuites()
+
+	browZerRuntimeSdkSuites := []uint16{
+
+		//vv JS-based TLS1.2 suites (here until we fully retire Forge on browser-side)
+		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
+		//^^
+
+		//vv WASM-based TLS1.3 suites
+		tls.TLS_AES_256_GCM_SHA384,
+		tls.TLS_CHACHA20_POLY1305_SHA256,
+		tls.TLS_AES_128_GCM_SHA256,
+		//^^
+
+	}
+	tlzCipherSuites = append(tlzCipherSuites, browZerRuntimeSdkSuites...)
+
 	cfg := &tls.Config{
-		ClientCAs:    caCertPool,
-		Certificates: []tls.Certificate{cert},
-		CipherSuites: []uint16{
-			tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		},
+		ClientCAs:                caCertPool,
+		Certificates:             []tls.Certificate{cert},
+		CipherSuites:             tlzCipherSuites,
 		ClientAuth:               tls.RequireAndVerifyClientCert,
-		MinVersion:               tls.VersionTLS11,
+		MinVersion:               tls.VersionTLS12,
+		MaxVersion:               tls.VersionTLS13,
 		PreferServerCipherSuites: true,
 	}
 
@@ -380,7 +401,7 @@ func (c *Connection) tlsHandshake() error {
 
 	c.tlsConnHandshakeComplete = true
 
-	c.log.Debug("TLS Handshake completed successfully")
+	c.log.Info("TLS Handshake completed successfully")
 
 	return nil
 }

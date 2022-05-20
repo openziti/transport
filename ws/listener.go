@@ -18,14 +18,17 @@ package ws
 
 import (
 	"crypto/tls"
+	"io"
+	"net/http"
+	"time"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/michaelquigley/pfxlog"
+	"github.com/openziti/foundation/util/tlz"
 	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"io"
-	"net/http"
 )
 
 var upgrader = websocket.Upgrader{}
@@ -34,6 +37,7 @@ type wsListener struct {
 	log     *logrus.Entry
 	acceptF func(transport.Conn)
 	cfg     *WSConfig
+	ctr     int64
 }
 
 /**
@@ -49,6 +53,11 @@ func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Reque
 		log.WithField("err", err).Error("websocket upgrade failed. Failure not recoverable.")
 	} else {
 
+		var zero time.Time
+		c.SetReadDeadline(zero)
+
+		listener.ctr++
+
 		connection := &Connection{
 			detail: &transport.ConnectionDetail{
 				Address: "ws:" + c.UnderlyingConn().RemoteAddr().String(),
@@ -63,11 +72,13 @@ func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Reque
 			tlstxbuf: newSafeBuffer(log),
 			done:     make(chan struct{}),
 			cfg:      listener.cfg,
+			connid:   listener.ctr,
 		}
+
+		log.Debug("starting tlsHandshake()")
 
 		err := connection.tlsHandshake() // Do not proceed until the JS client can successfully complete a TLS handshake
 		if err == nil {
-			go connection.pinger()
 			listener.acceptF(connection) // pass the Websocket to the goroutine that will validate the HELLO handshake
 		}
 	}
@@ -100,6 +111,7 @@ func wslistener(log *logrus.Entry, bindAddress string, cfg *WSConfig, name strin
 		log:     log,
 		acceptF: acceptF,
 		cfg:     cfg,
+		ctr:     0,
 	}
 
 	// Set up the HTTP -> Websocket upgrader options (once, before we start listening)
@@ -123,6 +135,9 @@ func wslistener(log *logrus.Entry, bindAddress string, cfg *WSConfig, name strin
 		Handler:      router,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{cert},
+			MaxVersion:   tls.VersionTLS13,
+			MinVersion:   tlz.GetMinTlsVersion(),
+			CipherSuites: tlz.GetCipherSuites(),
 		},
 	}
 
