@@ -368,7 +368,6 @@ func (c *Connection) tlsHandshake() error {
 		//vv JS-based TLS1.2 suites (here until we fully retire Forge on browser-side)
 		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
 		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
 		//^^
 
 		//vv WASM-based TLS1.3 suites
