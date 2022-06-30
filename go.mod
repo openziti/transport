@@ -14,7 +14,7 @@ require (
 )
 
 require (
-	github.com/emirpasic/gods v1.17.0 // indirect
+	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
