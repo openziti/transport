@@ -19,8 +19,8 @@ package tls
 import (
 	"crypto/tls"
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/foundation/identity/identity"
-	"github.com/openziti/foundation/util/concurrenz"
+	"github.com/openziti/identity"
+	"github.com/openziti/foundation/v2/concurrenz"
 	"github.com/openziti/transport/v2"
 	"github.com/sirupsen/logrus"
 	"io"

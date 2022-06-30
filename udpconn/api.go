@@ -17,7 +17,7 @@
 package udpconn
 
 import (
-	"github.com/openziti/foundation/util/mempool"
+	"github.com/openziti/foundation/v2/mempool"
 	"net"
 	"time"
 )

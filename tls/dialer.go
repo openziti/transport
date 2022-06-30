@@ -19,7 +19,7 @@ package tls
 import (
 	"crypto/tls"
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/foundation/identity/identity"
+	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	log "github.com/sirupsen/logrus"
 	"net"

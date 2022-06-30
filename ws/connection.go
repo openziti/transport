@@ -29,7 +29,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/openziti/foundation/util/tlz"
+	"github.com/openziti/foundation/v2/tlz"
 	"github.com/openziti/transport/v2"
 	"github.com/sirupsen/logrus"
 	// _ "unsafe"	// Using go:linkname requires us to import unsafe
