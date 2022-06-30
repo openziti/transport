@@ -20,7 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/foundation/identity/identity"
+	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/pion/dtls/v2"
 	"net"

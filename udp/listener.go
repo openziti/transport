@@ -19,9 +19,9 @@ package udp
 import (
 	"bufio"
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/foundation/identity/identity"
-	udp2 "github.com/openziti/foundation/udp"
+	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
+	"github.com/openziti/transport/v2/udpconn"
 	"github.com/sirupsen/logrus"
 	"io"
 	"math"
@@ -31,7 +31,7 @@ import (
 func Listen(bindAddress *net.UDPAddr, name string, i *identity.TokenId, acceptF func(transport.Conn)) (io.Closer, error) {
 	log := pfxlog.ContextLogger(name + "/udp:" + bindAddress.String())
 
-	listener, err := udp2.Listen("udp", bindAddress)
+	listener, err := udpconn.Listen("udp", bindAddress)
 	if err != nil {
 		return nil, err
 	}

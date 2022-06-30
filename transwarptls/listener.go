@@ -21,7 +21,7 @@ import (
 	"github.com/openziti/dilithium/cf"
 	"github.com/openziti/dilithium/protocol/westlsworld3"
 	"github.com/openziti/dilithium/protocol/westworld3"
-	"github.com/openziti/foundation/identity/identity"
+	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"

@@ -19,7 +19,7 @@ package transport
 import (
 	"errors"
 	"fmt"
-	"github.com/openziti/foundation/identity/identity"
+	"github.com/openziti/identity"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net"

@@ -25,7 +25,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/foundation/util/tlz"
+	"github.com/openziti/foundation/v2/tlz"
 	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
