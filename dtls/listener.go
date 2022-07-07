@@ -20,8 +20,8 @@ import (
 	"context"
 	"crypto/tls"
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/identity"
 	"github.com/openziti/foundation/v2/concurrenz"
+	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/pion/dtls/v2"
 	"github.com/sirupsen/logrus"
@@ -36,8 +36,14 @@ func Listen(addr *address, name string, i *identity.TokenId, acceptF func(transp
 	}
 	log := pfxlog.ContextLogger(name + "/" + addr.String()).Entry
 
+	var certs []tls.Certificate
+
+	for _, ptrCert := range i.ServerCert() {
+		certs = append(certs, *ptrCert)
+	}
+	
 	cfg := &dtls.Config{
-		Certificates: []tls.Certificate{*i.ServerCert()},
+		Certificates: certs,
 		//ExtendedMasterSecret: dtls.RequireExtendedMasterSecret,
 		ClientAuth: dtls.RequireAnyClientCert,
 		RootCAs:    i.CA(),
