@@ -321,8 +321,8 @@ github.com/openziti/dilithium v0.3.3 h1:PLgQ6PMNLSTzCFbX/h98cmudgz/cU6TmjdSv5NAP
 github.com/openziti/dilithium v0.3.3/go.mod h1:vsCjI2AU/hon9e+dLhUFbCNGesJDj2ASgkySOcpmvjo=
 github.com/openziti/foundation/v2 v2.0.1 h1:HKYwAyxlZ4zmlt0t9Y/v6SWso0qUaeWapkWOlQDKPEk=
 github.com/openziti/foundation/v2 v2.0.1/go.mod h1:L75kwCC5WTUPqxuAd3G+WMBompaElMb/nYlJjR1sJ9Q=
-github.com/openziti/identity v1.0.3 h1:/pcht4JC+Wrer6w+GNs/MDnCsGS7HmeEZCJRcMQ+05s=
-github.com/openziti/identity v1.0.3/go.mod h1:Nxf0CPFPkvdtFGvvsP4I/eZ//flU0q+sJVnLZDzlFOE=
+github.com/openziti/identity v1.0.4 h1:48OuTuvJLTv32Vahonga+wHhS3GL8aFUgSHK2pqbcDs=
+github.com/openziti/identity v1.0.4/go.mod h1:Nxf0CPFPkvdtFGvvsP4I/eZ//flU0q+sJVnLZDzlFOE=
 github.com/parallaxsecond/parsec-client-go v0.0.0-20220111122524-cb78842db373 h1:CUvH4JL/8OVy023LMER3dB/MerNQ6OIz4QV3E/JQ3UY=
 github.com/parallaxsecond/parsec-client-go v0.0.0-20220111122524-cb78842db373/go.mod h1:gLH27qo/dvMhLTVVyMELpe3Tut7sOfkiDg7ZpeqKwsw=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
