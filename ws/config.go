@@ -18,7 +18,6 @@ type Config struct {
 	ReadBufferSize    int
 	WriteBufferSize   int
 	EnableCompression bool
-	IdentityConfig    *identity.Config
 	Identity          identity.Identity
 }
 
@@ -104,18 +103,18 @@ func (self *Config) Load(data map[interface{}]interface{}) error {
 
 	if v, found := data["identity"]; found {
 		if identityMap, ok := v.(map[interface{}]interface{}); ok {
-			var err error
-			self.IdentityConfig, err = identity.NewConfigFromMap(identityMap)
+
+			identityConfig, err := identity.NewConfigFromMap(identityMap)
 
 			if err != nil {
 				return fmt.Errorf("could not load wss identity section: %w", err)
 			}
 
-			if err = self.IdentityConfig.ValidateForServerWithPathContext("transport.ws"); err != nil {
+			if err = identityConfig.ValidateForServerWithPathContext("transport.ws"); err != nil {
 				return fmt.Errorf("could not validate wss identity section: %w", err)
 			}
 
-			if self.Identity, err = identity.LoadIdentity(*self.IdentityConfig); err != nil {
+			if self.Identity, err = identity.LoadIdentity(*identityConfig); err != nil {
 				return fmt.Errorf("could not load wss identity section: %w", err)
 			}
 
@@ -138,11 +137,11 @@ func (self *Config) Dump(name string) string {
 	out += fmt.Sprintf("\t%-30s %d\n", "readBufferSize", self.ReadBufferSize)
 	out += fmt.Sprintf("\t%-30s %d\n", "writeBufferSize", self.WriteBufferSize)
 	out += fmt.Sprintf("\t%-30s %t\n", "enableCompression", self.EnableCompression)
-	out += fmt.Sprintf("\t%-30s %s\n", "serverCert", self.IdentityConfig.ServerCert)
-	out += fmt.Sprintf("\t%-30s %s\n", "key", self.IdentityConfig.Key)
-	out += fmt.Sprintf("\t%-30s %s\n", "server_key", self.IdentityConfig.ServerKey)
+	out += fmt.Sprintf("\t%-30s %s\n", "serverCert", self.Identity.GetConfig().ServerCert)
+	out += fmt.Sprintf("\t%-30s %s\n", "key", self.Identity.GetConfig().Key)
+	out += fmt.Sprintf("\t%-30s %s\n", "server_key", self.Identity.GetConfig().ServerKey)
 
-	for _, altServerCerts := range self.IdentityConfig.AltServerCerts {
+	for _, altServerCerts := range self.Identity.GetConfig().AltServerCerts {
 		out += fmt.Sprintf("\t%-30s %s\n", "alt_server_certs[%d].serverCert", altServerCerts.ServerCert)
 		out += fmt.Sprintf("\t%-30s %s\n", "alt_server_certs[%d].server_key", altServerCerts.ServerKey)
 	}

@@ -50,7 +50,7 @@ func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport
 		}
 	}
 
-	return Listen(a.bindableAddress(), name, acceptF, wssConfig)
+	return Listen(a.bindableAddress(), name, i, acceptF, wssConfig)
 }
 
 func (a address) MustListen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) io.Closer {

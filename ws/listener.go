@@ -17,6 +17,7 @@
 package ws
 
 import (
+	"github.com/openziti/identity"
 	"io"
 	"net/http"
 	"time"
@@ -82,10 +83,12 @@ func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func Listen(bindAddress string, name string, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
+func Listen(bindAddress string, name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
 	log := pfxlog.ContextLogger(name + "/ws:" + bindAddress)
 
 	cfg := NewDefaultConfig()
+	cfg.Identity = i
+
 	if tcfg != nil {
 		if err := cfg.Load(tcfg); err != nil {
 			return nil, errors.Wrap(err, "load configuration")
