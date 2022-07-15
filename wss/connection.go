@@ -23,6 +23,7 @@ import (
 	"errors"
 	"github.com/gorilla/websocket"
 	"github.com/openziti/transport/v2"
+	"github.com/openziti/transport/v2/ws"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net"
@@ -72,7 +73,7 @@ func (s *safeBuffer) Reset() {
 // Connection wraps gorilla websocket to provide io.ReadWriteCloser
 type Connection struct {
 	detail *transport.ConnectionDetail
-	cfg    *WSSConfig
+	cfg    *ws.Config
 	ws     *websocket.Conn
 	log    *logrus.Entry
 	rxbuf  *safeBuffer
@@ -141,13 +142,13 @@ func (c *Connection) write(messageType int, p []byte) (n int, err error) {
 	case <-c.done:
 		err = errClosing
 	default:
-		c.txbuf.Write(p)
+		_, _ = c.txbuf.Write(p)
 		txbufLen = c.txbuf.Len()
 		if txbufLen > 20 { // TEMP HACK:  (until I refactor the JS-SDK to accept the message section and data section in separate salvos)
-			err = c.ws.SetWriteDeadline(time.Now().Add(c.cfg.writeTimeout))
+			err = c.ws.SetWriteDeadline(time.Now().Add(c.cfg.WriteTimeout))
 			if err == nil {
 				m := make([]byte, txbufLen)
-				c.txbuf.Read(m)
+				_, _ = c.txbuf.Read(m)
 				err = c.ws.WriteMessage(messageType, m)
 			}
 		}
@@ -177,7 +178,7 @@ func (c *Connection) Close() error {
 
 // pinger sends ping messages on an interval for client keep-alive.
 func (c *Connection) pinger() {
-	ticker := time.NewTicker(c.cfg.pingInterval)
+	ticker := time.NewTicker(c.cfg.PingInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -200,11 +201,11 @@ func newSafeBuffer(log *logrus.Entry) *safeBuffer {
 	}
 }
 
-func (self *Connection) Detail() *transport.ConnectionDetail {
-	return self.detail
+func (c *Connection) Detail() *transport.ConnectionDetail {
+	return c.detail
 }
 
-func (self *Connection) PeerCertificates() []*x509.Certificate {
-	var tlsConn (*tls.Conn) = self.ws.UnderlyingConn().(*tls.Conn)
+func (c *Connection) PeerCertificates() []*x509.Certificate {
+	var tlsConn = c.ws.UnderlyingConn().(*tls.Conn)
 	return tlsConn.ConnectionState().PeerCertificates
 }

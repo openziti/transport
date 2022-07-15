@@ -17,11 +17,12 @@
 package wss
 
 import (
-	"crypto/tls"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/michaelquigley/pfxlog"
+	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
+	"github.com/openziti/transport/v2/ws"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -33,7 +34,7 @@ var upgrader = websocket.Upgrader{}
 type wssListener struct {
 	log     *logrus.Entry
 	acceptF func(transport.Conn)
-	cfg     *WSSConfig
+	cfg     *ws.Config
 }
 
 /**
@@ -68,41 +69,40 @@ func (listener *wssListener) handleWebsocket(w http.ResponseWriter, r *http.Requ
 		listener.acceptF(connection) // pass the Websocket to the goroutine that will validate the HELLO handshake
 	}
 }
-
-func Listen(bindAddress string, name string, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
+func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transport.Conn), transportConfig transport.Configuration) (io.Closer, error) {
 	log := pfxlog.ContextLogger(name + "/wss:" + bindAddress)
 
-	cfg := NewDefaultWSSConfig()
-	if tcfg != nil {
-		if err := cfg.Load(tcfg); err != nil {
+	config := ws.NewDefaultConfig()
+	config.Identity = i
+
+	if transportConfig != nil {
+		if err := config.Load(transportConfig); err != nil {
 			return nil, errors.Wrap(err, "load configuration")
 		}
 	}
-	logrus.Infof(cfg.Dump())
+	logrus.Infof(config.Dump("wss.Config"))
 
-	go wsslistener(log.Entry, bindAddress, cfg, name, acceptF)
+	go startHttpServer(log.Entry, bindAddress, config, name, acceptF)
 
 	return nil, nil
 }
 
-/**
- *	The TLS-based listener that accepts acceptF HTTP connections that we will upgrade to Websocket connections
- */
-func wsslistener(log *logrus.Entry, bindAddress string, cfg *WSSConfig, name string, acceptF func(transport.Conn)) {
+// startHttpServer will start an HTTP server that will upgrade to WebSocket connections on request
+func startHttpServer(log *logrus.Entry, bindAddress string, config *ws.Config, name string, acceptF func(transport.Conn)) {
 
 	log.Infof("starting HTTP (websocket) server at bindAddress [%s]", bindAddress)
 
 	listener := &wssListener{
 		log:     log,
 		acceptF: acceptF,
-		cfg:     cfg,
+		cfg:     config,
 	}
 
 	// Set up the HTTP -> Websocket upgrader options (once, before we start listening)
-	upgrader.HandshakeTimeout = cfg.handshakeTimeout
-	upgrader.ReadBufferSize = cfg.readBufferSize
-	upgrader.WriteBufferSize = cfg.writeBufferSize
-	upgrader.EnableCompression = cfg.enableCompression
+	upgrader.HandshakeTimeout = config.HandshakeTimeout
+	upgrader.ReadBufferSize = config.ReadBufferSize
+	upgrader.WriteBufferSize = config.WriteBufferSize
+	upgrader.EnableCompression = config.EnableCompression
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true } // Allow all origins
 
 	router := mux.NewRouter()
@@ -111,16 +111,14 @@ func wsslistener(log *logrus.Entry, bindAddress string, cfg *WSSConfig, name str
 
 	httpServer := &http.Server{
 		Addr:         bindAddress,
-		WriteTimeout: cfg.writeTimeout,
-		ReadTimeout:  cfg.readTimeout,
-		IdleTimeout:  cfg.idleTimeout,
+		WriteTimeout: config.WriteTimeout,
+		ReadTimeout:  config.ReadTimeout,
+		IdleTimeout:  config.IdleTimeout,
 		Handler:      router,
-		TLSConfig: &tls.Config{
-			ClientAuth: tls.RequestClientCert,
-		},
+		TLSConfig:    config.Identity.ServerTLSConfig(),
 	}
 
-	if err := httpServer.ListenAndServeTLS(cfg.serverCert, cfg.key); err != nil {
+	if err := httpServer.ListenAndServeTLS("", ""); err != nil {
 		panic(err)
 	}
 }

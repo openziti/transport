@@ -22,75 +22,33 @@ import (
 	"crypto/x509"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/openziti/foundation/v2/tlz"
 	"github.com/openziti/transport/v2"
 	"github.com/sirupsen/logrus"
 	// _ "unsafe"	// Using go:linkname requires us to import unsafe
 )
 
-/**
- *	For the moment, we do not need to exploit the go:linkname mechanism(s) in order to
- *	manipulate portions of the Go runtime, but we leave this code here, commented out,
- *	in case we need to revisit.
-
-
-// A cipherSuite is a specific combination of key agreement, cipher and MAC function.
-type cipherSuite struct {
-	id uint16
-	// the lengths, in bytes, of the key material needed for each component.
-	keyLen int
-	macLen int
-	ivLen  int
-	ka     func(version uint16)
-	// flags is a bitmask of the suite* values, above.
-	flags  int
-	cipher func(key, iv []byte, isRead bool) interface{}
-	mac    func(version uint16, macKey []byte)
-	aead   func(key, fixedNonce []byte)
-}
-
-//go:linkname cipherSuites crypto/tls.cipherSuites
-var cipherSuites []*cipherSuite
-
-const (
-	// suiteECDHE indicates that the cipher suite involves elliptic curve
-	// Diffie-Hellman. This means that it should only be selected when the
-	// client indicates that it supports ECC with a curve and point format
-	// that we're happy with.
-	suiteECDHE = 1 << iota
-	// suiteECSign indicates that the cipher suite involves an ECDSA or
-	// EdDSA signature and therefore may only be selected when the server's
-	// certificate is ECDSA or EdDSA. If this is not set then the cipher suite
-	// is RSA based.
-	suiteECSign
-	// suiteTLS12 indicates that the cipher suite should only be advertised
-	// and accepted when using TLS 1.2.
-	suiteTLS12
-	// suiteSHA384 indicates that the cipher suite uses SHA384 as the
-	// handshake hash.
-	suiteSHA384
-	// suiteDefaultOff indicates that this cipher suite is not included by
-	// default.
-	suiteDefaultOff
-)
-
-*/
-
-// TLS 1.0 - 1.2 cipher suites supported by ziti-sdk-js
-const (
-	TLS_RSA_WITH_AES_128_CBC_SHA uint16 = 0x002f
-	TLS_RSA_WITH_AES_256_CBC_SHA uint16 = 0x0035
-)
-
 var (
 	errClosing = errors.New(`Closing`)
+
+	browZerRuntimeSdkSuites = []uint16{
+
+		//vv JS-based TLS1.2 suites (here until we fully retire Forge on browser-side)
+		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		//^^
+
+		//vv WASM-based TLS1.3 suites
+		tls.TLS_AES_256_GCM_SHA384,
+		tls.TLS_CHACHA20_POLY1305_SHA256,
+		tls.TLS_AES_128_GCM_SHA256,
+		//^^
+	}
 )
 
 // safeBuffer adds thread-safety to *bytes.Buffer
@@ -131,7 +89,7 @@ func (s *safeBuffer) Reset() {
 // Connection wraps gorilla websocket to provide io.ReadWriteCloser
 type Connection struct {
 	detail                   *transport.ConnectionDetail
-	cfg                      *WSConfig
+	cfg                      *Config
 	ws                       *websocket.Conn
 	tlsConn                  *tls.Conn
 	tlsConnHandshakeComplete bool
@@ -176,7 +134,7 @@ func (c *Connection) Read(p []byte) (n int, err error) {
 		default:
 			if c.tlsConnHandshakeComplete && currentDepth == 1 {
 				n, err = c.tlsConn.Read(p)
-				atomic.SwapInt32(&c.readCallDepth, (c.readCallDepth - 1))
+				atomic.SwapInt32(&c.readCallDepth, c.readCallDepth-1)
 				c.log.Tracef("Read() end currentDepth[%d]", currentDepth)
 				return n, err
 			} else {
@@ -195,7 +153,7 @@ func (c *Connection) Read(p []byte) (n int, err error) {
 		c.log.Tracef("Read() connid[%d] after io.Copy currentDepth[%d] c.rxbuf.Len[%d]", c.connid, currentDepth, c.rxbuf.Len())
 	}
 
-	atomic.SwapInt32(&c.readCallDepth, (c.readCallDepth - 1))
+	atomic.SwapInt32(&c.readCallDepth, c.readCallDepth-1)
 
 	return c.rxbuf.Read(p)
 }
@@ -231,37 +189,37 @@ func (c *Connection) write(messageType int, p []byte) (n int, err error) {
 		var txbufLen int
 
 		if !c.tlsConnHandshakeComplete {
-			c.tlstxbuf.Write(p)
+			_, _ = c.tlstxbuf.Write(p)
 			txbufLen = c.tlstxbuf.Len()
 			c.log.Tracef("Write() doing TLS handshake (buffering); currentDepth[%d] txbufLen[%d] data[%o]", c.writeCallDepth, txbufLen, p)
 		} else if currentDepth == 1 { // if at TLS level (1st level)
-			c.tlstxbuf.Write(p)
+			_, _ = c.tlstxbuf.Write(p)
 			txbufLen = c.tlstxbuf.Len()
 			c.log.Tracef("Write() doing TLS write; currentDepth[%d] txbufLen[%d] data[%o]", c.writeCallDepth, txbufLen, p)
 		} else { // if at websocket level (2nd level)
-			c.txbuf.Write(p)
+			_, _ = c.txbuf.Write(p)
 			txbufLen = c.txbuf.Len()
 			c.log.Tracef("Write() doing raw write; currentDepth[%d] txbufLen[%d] data[%o]", c.writeCallDepth, txbufLen, p)
 		}
 
-		err = c.ws.SetWriteDeadline(time.Now().Add(c.cfg.writeTimeout))
+		err = c.ws.SetWriteDeadline(time.Now().Add(c.cfg.WriteTimeout))
 		if err == nil {
 			if !c.tlsConnHandshakeComplete {
 				m := make([]byte, txbufLen)
-				c.tlstxbuf.Read(m)
+				_, _ = c.tlstxbuf.Read(m)
 				c.log.Tracef("Write() doing TLS handshake (to websocket); currentDepth[%d] txbufLen[%d] data[%o]", c.writeCallDepth, txbufLen, m)
 				err = c.ws.WriteMessage(messageType, m)
 			} else if currentDepth == 1 {
 				m := make([]byte, txbufLen)
-				c.tlstxbuf.Read(m)
+				_, _ = c.tlstxbuf.Read(m)
 				c.log.Tracef("Write() doing TLS write (to conn); currentDepth[%d] txbufLen[%d] data[%o]", c.writeCallDepth, txbufLen, m)
 				n, err = c.tlsConn.Write(m)
-				atomic.SwapInt32(&c.writeCallDepth, (c.writeCallDepth - 1))
+				atomic.SwapInt32(&c.writeCallDepth, c.writeCallDepth-1)
 				c.log.Tracef("write() end TLS write currentDepth[%d]", c.writeCallDepth)
 				return n, err
 			} else {
 				m := make([]byte, txbufLen)
-				c.txbuf.Read(m)
+				_, _ = c.txbuf.Read(m)
 				c.log.Tracef("Write() doing raw write (to websocket); currentDepth[%d] len[%d]", c.writeCallDepth, len(m))
 				err = c.ws.WriteMessage(messageType, m)
 			}
@@ -270,7 +228,7 @@ func (c *Connection) write(messageType int, p []byte) (n int, err error) {
 	if err == nil {
 		n = txbufLen
 	}
-	atomic.SwapInt32(&c.writeCallDepth, (c.writeCallDepth - 1))
+	atomic.SwapInt32(&c.writeCallDepth, c.writeCallDepth-1)
 	c.log.Tracef("Write() end currentDepth[%d]", c.writeCallDepth)
 
 	return n, err
@@ -295,7 +253,7 @@ func (c *Connection) Close() error {
 
 // pinger sends ping messages on an interval for client keep-alive.
 func (c *Connection) pinger() {
-	ticker := time.NewTicker(c.cfg.pingInterval)
+	ticker := time.NewTicker(c.cfg.PingInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -310,87 +268,15 @@ func (c *Connection) pinger() {
 	}
 }
 
-/**
- *	See above note re go:linkname
- *
-func (c *Connection) patchCipherSuites() {
-	c.log.Debug("patchCipherSuites dump: v----------------------------------------------------------")
-	for _, cipherSuite := range cipherSuites {
-		if cipherSuite.id == TLS_RSA_WITH_AES_128_CBC_SHA {
-			c.log.Debug("cipherSuite: TLS_RSA_WITH_AES_128_CBC_SHA before: ", cipherSuite)
-			cipherSuite.flags = suiteTLS12 | suiteECDHE
-			c.log.Debug("cipherSuite: TLS_RSA_WITH_AES_128_CBC_SHA after: ", cipherSuite)
-		}
-		if cipherSuite.id == TLS_RSA_WITH_AES_256_CBC_SHA {
-			c.log.Debug("cipherSuite: TLS_RSA_WITH_AES_256_CBC_SHA before: ", cipherSuite)
-			cipherSuite.flags = suiteTLS12 | suiteECDHE
-			c.log.Debug("cipherSuite: TLS_RSA_WITH_AES_256_CBC_SHA after: ", cipherSuite)
-		}
-	}
-	c.log.Debug("patchCipherSuites dump: ^----------------------------------------------------------")
-}
-*/
-
 // tlsHandshake wraps the websocket in a TLS server.
 func (c *Connection) tlsHandshake() error {
-	var err error
-	var serverCertPEM []byte
-	var keyPEM []byte
 
-	//patchCipherSuites()
-
-	if serverCertPEM, err = ioutil.ReadFile(c.cfg.serverCert); err != nil {
-		c.log.Error(err)
-		_ = c.Close()
-		return err
-	}
-
-	if keyPEM, err = ioutil.ReadFile(c.cfg.key); err != nil {
-		c.log.Error(err)
-		_ = c.Close()
-		return err
-	}
-
-	cert, err := tls.X509KeyPair(serverCertPEM, keyPEM)
-	if err != nil {
-		c.log.Error(err)
-		_ = c.Close()
-		return err
-	}
-
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(serverCertPEM)
-
-	tlzCipherSuites := tlz.GetCipherSuites()
-
-	browZerRuntimeSdkSuites := []uint16{
-
-		//vv JS-based TLS1.2 suites (here until we fully retire Forge on browser-side)
-		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		//^^
-
-		//vv WASM-based TLS1.3 suites
-		tls.TLS_AES_256_GCM_SHA384,
-		tls.TLS_CHACHA20_POLY1305_SHA256,
-		tls.TLS_AES_128_GCM_SHA256,
-		//^^
-
-	}
-	tlzCipherSuites = append(tlzCipherSuites, browZerRuntimeSdkSuites...)
-
-	cfg := &tls.Config{
-		ClientCAs:                caCertPool,
-		Certificates:             []tls.Certificate{cert},
-		CipherSuites:             tlzCipherSuites,
-		ClientAuth:               tls.RequireAndVerifyClientCert,
-		MinVersion:               tls.VersionTLS12,
-		MaxVersion:               tls.VersionTLS13,
-		PreferServerCipherSuites: true,
-	}
+	cfg := c.cfg.Identity.ServerTLSConfig()
+	cfg.ClientAuth = tls.RequireAndVerifyClientCert
+	cfg.CipherSuites = append(cfg.CipherSuites, browZerRuntimeSdkSuites...)
 
 	c.tlsConn = tls.Server(c, cfg)
-	if err = c.tlsConn.Handshake(); err != nil {
+	if err := c.tlsConn.Handshake(); err != nil {
 		if err != nil {
 			c.log.Error(err)
 			_ = c.Close()
@@ -413,30 +299,30 @@ func newSafeBuffer(log *logrus.Entry) *safeBuffer {
 	}
 }
 
-func (self *Connection) Detail() *transport.ConnectionDetail {
-	return self.detail
+func (c *Connection) Detail() *transport.ConnectionDetail {
+	return c.detail
 }
 
-func (self *Connection) PeerCertificates() []*x509.Certificate {
-	if self.tlsConnHandshakeComplete {
-		return self.tlsConn.ConnectionState().PeerCertificates
+func (c *Connection) PeerCertificates() []*x509.Certificate {
+	if c.tlsConnHandshakeComplete {
+		return c.tlsConn.ConnectionState().PeerCertificates
 	} else {
 		return nil
 	}
 }
 
-func (self *Connection) LocalAddr() net.Addr {
-	return self.ws.UnderlyingConn().LocalAddr()
+func (c *Connection) LocalAddr() net.Addr {
+	return c.ws.UnderlyingConn().LocalAddr()
 }
-func (self *Connection) RemoteAddr() net.Addr {
-	return self.ws.UnderlyingConn().RemoteAddr()
+func (c *Connection) RemoteAddr() net.Addr {
+	return c.ws.UnderlyingConn().RemoteAddr()
 }
-func (self *Connection) SetDeadline(t time.Time) error {
-	return self.ws.UnderlyingConn().SetDeadline(t)
+func (c *Connection) SetDeadline(t time.Time) error {
+	return c.ws.UnderlyingConn().SetDeadline(t)
 }
-func (self *Connection) SetReadDeadline(t time.Time) error {
-	return self.ws.UnderlyingConn().SetReadDeadline(t)
+func (c *Connection) SetReadDeadline(t time.Time) error {
+	return c.ws.UnderlyingConn().SetReadDeadline(t)
 }
-func (self *Connection) SetWriteDeadline(t time.Time) error {
-	return self.ws.UnderlyingConn().SetWriteDeadline(t)
+func (c *Connection) SetWriteDeadline(t time.Time) error {
+	return c.ws.UnderlyingConn().SetWriteDeadline(t)
 }

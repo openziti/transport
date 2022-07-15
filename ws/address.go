@@ -35,24 +35,22 @@ type address struct {
 }
 
 func (a address) Dial(name string, i *identity.TokenId, _ time.Duration, _ transport.Configuration) (transport.Conn, error) {
-	return Dial(a.bindableAddress(), name)
+	panic("Dial is unsupported for ws transport")
 }
 
 func (a address) DialWithLocalBinding(name string, localBinding string, _ *identity.TokenId, timeout time.Duration, _ transport.Configuration) (transport.Conn, error) {
-	return DialWithLocalBinding(a.bindableAddress(), name, localBinding)
+	panic("Dial is unsupported for ws transport")
 }
 
 func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
-	var subc map[interface{}]interface{}
+	var wssConfig map[interface{}]interface{}
 	if tcfg != nil {
 		if v, found := tcfg["ws"]; found {
-			if subv, ok := v.(map[interface{}]interface{}); ok {
-				subc = subv
-			}
+			wssConfig = v.(map[interface{}]interface{})
 		}
 	}
 
-	return Listen(a.bindableAddress(), name, acceptF, subc)
+	return Listen(a.bindableAddress(), name, acceptF, wssConfig)
 }
 
 func (a address) MustListen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) io.Closer {

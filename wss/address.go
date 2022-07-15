@@ -34,25 +34,23 @@ type address struct {
 	port     uint16
 }
 
-func (a address) Dial(name string, i *identity.TokenId, _ time.Duration, _ transport.Configuration) (transport.Conn, error) {
-	return Dial(a.bindableAddress(), name)
+func (a address) Dial(_ string, _ *identity.TokenId, _ time.Duration, _ transport.Configuration) (transport.Conn, error) {
+	panic("Dial is unsupported for wss transport")
 }
 
-func (a address) DialWithLocalBinding(name string, localBinding string, _ *identity.TokenId, timeout time.Duration, _ transport.Configuration) (transport.Conn, error) {
-	return DialWithLocalBinding(a.bindableAddress(), name, localBinding)
+func (a address) DialWithLocalBinding(_ string, _ string, _ *identity.TokenId, _ time.Duration, _ transport.Configuration) (transport.Conn, error) {
+	panic("Dial is unsupported for wss transport")
 }
 
-func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
-	var subc map[interface{}]interface{}
-	if tcfg != nil {
-		if v, found := tcfg["wss"]; found {
-			if subv, ok := v.(map[interface{}]interface{}); ok {
-				subc = subv
-			}
+func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), config transport.Configuration) (io.Closer, error) {
+	var wssConfig map[interface{}]interface{}
+	if config != nil {
+		if v, found := config["wss"]; found {
+			wssConfig = v.(map[interface{}]interface{})
 		}
 	}
 
-	return Listen(a.bindableAddress(), name, acceptF, subc)
+	return Listen(a.bindableAddress(), name, i, acceptF, wssConfig)
 }
 
 func (a address) MustListen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) io.Closer {
