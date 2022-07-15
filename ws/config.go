@@ -2,143 +2,150 @@ package ws
 
 import (
 	"fmt"
-	"time"
-
+	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
+	"time"
 )
 
-type WSConfig struct {
-	writeTimeout      time.Duration
-	readTimeout       time.Duration
-	idleTimeout       time.Duration
-	pongTimeout       time.Duration
-	pingInterval      time.Duration
-	handshakeTimeout  time.Duration
-	readBufferSize    int
-	writeBufferSize   int
-	enableCompression bool
-	serverCert        string
-	key               string
+type Config struct {
+	WriteTimeout      time.Duration
+	ReadTimeout       time.Duration
+	IdleTimeout       time.Duration
+	PongTimeout       time.Duration
+	PingInterval      time.Duration
+	HandshakeTimeout  time.Duration
+	ReadBufferSize    int
+	WriteBufferSize   int
+	EnableCompression bool
+	Identity          identity.Identity
 }
 
-func NewDefaultWSConfig() *WSConfig {
-	return &WSConfig{
-		writeTimeout:      transport.DefaultWsWriteTimeout,
-		readTimeout:       transport.DefaultWsReadTimeout,
-		idleTimeout:       transport.DefaultWsIdleTimeout,
-		pongTimeout:       transport.DefaultWsPongTimeout,
-		handshakeTimeout:  transport.DefaultWsHandshakeTimeout,
-		readBufferSize:    transport.DefaultWsReadBufferSize,
-		writeBufferSize:   transport.DefaultWsWriteBufferSize,
-		enableCompression: transport.DefaultWsEnableCompression,
+func NewDefaultConfig() *Config {
+	return &Config{
+		WriteTimeout:      transport.DefaultWsWriteTimeout,
+		ReadTimeout:       transport.DefaultWsReadTimeout,
+		IdleTimeout:       transport.DefaultWsIdleTimeout,
+		PongTimeout:       transport.DefaultWsPongTimeout,
+		HandshakeTimeout:  transport.DefaultWsHandshakeTimeout,
+		ReadBufferSize:    transport.DefaultWsReadBufferSize,
+		WriteBufferSize:   transport.DefaultWsWriteBufferSize,
+		EnableCompression: transport.DefaultWsEnableCompression,
 	}
 }
 
-func (self *WSConfig) Load(data map[interface{}]interface{}) error {
+func (self *Config) Load(data map[interface{}]interface{}) error {
 	if v, found := data["writeTimeout"]; found {
 		if i, ok := v.(int); ok {
-			self.writeTimeout = time.Second * time.Duration(i)
+			self.WriteTimeout = time.Second * time.Duration(i)
 		} else {
 			return errors.New("invalid 'writeTimeout' value")
 		}
 	}
 	if v, found := data["readTimeout"]; found {
 		if i, ok := v.(int); ok {
-			self.readTimeout = time.Second * time.Duration(i)
+			self.ReadTimeout = time.Second * time.Duration(i)
 		} else {
 			return errors.New("invalid 'readTimeout' value")
 		}
 	}
 	if v, found := data["idleTimeout"]; found {
 		if i, ok := v.(int); ok {
-			self.idleTimeout = time.Second * time.Duration(i)
+			self.IdleTimeout = time.Second * time.Duration(i)
 		} else {
 			return errors.New("invalid 'idleTimeout' value")
 		}
 	}
 	if v, found := data["pongTimeout"]; found {
 		if i, ok := v.(int); ok {
-			self.pongTimeout = time.Second * time.Duration(i)
+			self.PongTimeout = time.Second * time.Duration(i)
 		} else {
 			return errors.New("invalid 'pongTimeout' value")
 		}
 	}
 	if v, found := data["pingInterval"]; found {
 		if i, ok := v.(int); ok {
-			self.pingInterval = time.Second * time.Duration(i)
+			self.PingInterval = time.Second * time.Duration(i)
 		} else {
 			return errors.New("invalid 'pingInterval' value")
 		}
 	} else {
-		self.pingInterval = transport.DefaultWsPingInterval
+		self.PingInterval = transport.DefaultWsPingInterval
 	}
 	if v, found := data["handshakeTimeout"]; found {
 		if i, ok := v.(int); ok {
-			self.handshakeTimeout = time.Second * time.Duration(i)
+			self.HandshakeTimeout = time.Second * time.Duration(i)
 		} else {
 			return errors.New("invalid 'handshakeTimeout' value")
 		}
 	}
 	if v, found := data["readBufferSize"]; found {
 		if i, ok := v.(int); ok {
-			self.readBufferSize = i
+			self.ReadBufferSize = i
 		} else {
 			return errors.New("invalid 'readBufferSize' value")
 		}
 	}
 	if v, found := data["writeBufferSize"]; found {
 		if i, ok := v.(int); ok {
-			self.writeBufferSize = i
+			self.WriteBufferSize = i
 		} else {
 			return errors.New("invalid 'writeBufferSize' value")
 		}
 	}
 	if v, found := data["enableCompression"]; found {
 		if i, ok := v.(bool); ok {
-			self.enableCompression = i
+			self.EnableCompression = i
 		} else {
 			return errors.New("invalid 'enableCompression' value")
 		}
 	}
-	if v, found := data["server_cert"]; found {
-		if s, ok := v.(string); ok {
-			self.serverCert = s
-		} else {
-			return errors.New("invalid 'server_cert' value")
-		}
-	}
-	if v, found := data["key"]; found {
-		if s, ok := v.(string); ok {
-			self.key = s
-		} else {
-			return errors.New("invalid 'key' value")
-		}
-	}
 
-	if len(self.serverCert) == 0 {
-		return errors.New("transport.ws.serverCert was not specified'")
-	}
-	if len(self.key) == 0 {
-		return errors.New("transport.ws.key was not specified'")
+	if v, found := data["identity"]; found {
+		if identityMap, ok := v.(map[interface{}]interface{}); ok {
+
+			identityConfig, err := identity.NewConfigFromMap(identityMap)
+
+			if err != nil {
+				return fmt.Errorf("could not load wss identity section: %w", err)
+			}
+
+			if err = identityConfig.ValidateForServerWithPathContext("transport.ws"); err != nil {
+				return fmt.Errorf("could not validate wss identity section: %w", err)
+			}
+
+			if self.Identity, err = identity.LoadIdentity(*identityConfig); err != nil {
+				return fmt.Errorf("could not load wss identity section: %w", err)
+			}
+
+		} else {
+			return errors.New("invalid identity value")
+		}
 	}
 
 	return nil
 }
 
-func (self *WSConfig) Dump() string {
-	out := "ws.Config{\n"
-	out += fmt.Sprintf("\t%-30s %d\n", "writeTimeout", self.writeTimeout)
-	out += fmt.Sprintf("\t%-30s %d\n", "readTimeout", self.readTimeout)
-	out += fmt.Sprintf("\t%-30s %d\n", "idleTimeout", self.idleTimeout)
-	out += fmt.Sprintf("\t%-30s %d\n", "pongTimeout", self.pongTimeout)
-	out += fmt.Sprintf("\t%-30s %d\n", "pingInterval", self.pingInterval)
-	out += fmt.Sprintf("\t%-30s %d\n", "handshakeTimeout", self.handshakeTimeout)
-	out += fmt.Sprintf("\t%-30s %d\n", "readBufferSize", self.readBufferSize)
-	out += fmt.Sprintf("\t%-30s %d\n", "writeBufferSize", self.writeBufferSize)
-	out += fmt.Sprintf("\t%-30s %t\n", "enableCompression", self.enableCompression)
-	out += fmt.Sprintf("\t%-30s %s\n", "serverCert", self.serverCert)
-	out += fmt.Sprintf("\t%-30s %s\n", "key", self.key)
+func (self *Config) Dump(name string) string {
+	out := name + "{\n"
+	out += fmt.Sprintf("\t%-30s %d\n", "writeTimeout", self.WriteTimeout)
+	out += fmt.Sprintf("\t%-30s %d\n", "readTimeout", self.ReadTimeout)
+	out += fmt.Sprintf("\t%-30s %d\n", "idleTimeout", self.IdleTimeout)
+	out += fmt.Sprintf("\t%-30s %d\n", "pongTimeout", self.PongTimeout)
+	out += fmt.Sprintf("\t%-30s %d\n", "pingInterval", self.PingInterval)
+	out += fmt.Sprintf("\t%-30s %d\n", "handshakeTimeout", self.HandshakeTimeout)
+	out += fmt.Sprintf("\t%-30s %d\n", "readBufferSize", self.ReadBufferSize)
+	out += fmt.Sprintf("\t%-30s %d\n", "writeBufferSize", self.WriteBufferSize)
+	out += fmt.Sprintf("\t%-30s %t\n", "enableCompression", self.EnableCompression)
+	out += fmt.Sprintf("\t%-30s %s\n", "serverCert", self.Identity.GetConfig().ServerCert)
+	out += fmt.Sprintf("\t%-30s %s\n", "key", self.Identity.GetConfig().Key)
+	out += fmt.Sprintf("\t%-30s %s\n", "server_key", self.Identity.GetConfig().ServerKey)
+
+	for _, altServerCerts := range self.Identity.GetConfig().AltServerCerts {
+		out += fmt.Sprintf("\t%-30s %s\n", "alt_server_certs[%d].serverCert", altServerCerts.ServerCert)
+		out += fmt.Sprintf("\t%-30s %s\n", "alt_server_certs[%d].server_key", altServerCerts.ServerKey)
+	}
+
 	out += "}"
 	return out
 }

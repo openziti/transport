@@ -17,7 +17,7 @@
 package ws
 
 import (
-	"crypto/tls"
+	"github.com/openziti/identity"
 	"io"
 	"net/http"
 	"time"
@@ -25,7 +25,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/foundation/v2/tlz"
 	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -36,7 +35,7 @@ var upgrader = websocket.Upgrader{}
 type wsListener struct {
 	log     *logrus.Entry
 	acceptF func(transport.Conn)
-	cfg     *WSConfig
+	cfg     *Config
 	ctr     int64
 }
 
@@ -84,18 +83,20 @@ func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func Listen(bindAddress string, name string, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
+func Listen(bindAddress string, name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
 	log := pfxlog.ContextLogger(name + "/ws:" + bindAddress)
 
-	cfg := NewDefaultWSConfig()
+	cfg := NewDefaultConfig()
+	cfg.Identity = i
+
 	if tcfg != nil {
 		if err := cfg.Load(tcfg); err != nil {
 			return nil, errors.Wrap(err, "load configuration")
 		}
 	}
-	logrus.Infof(cfg.Dump())
+	logrus.Infof(cfg.Dump("ws.Config"))
 
-	go wslistener(log.Entry, bindAddress, cfg, name, acceptF)
+	go startHttpServer(log.Entry, bindAddress, cfg, name, acceptF)
 
 	return nil, nil
 }
@@ -103,7 +104,7 @@ func Listen(bindAddress string, name string, acceptF func(transport.Conn), tcfg 
 /**
  *	The TCP-based listener that accepts acceptF HTTP connections that we will upgrade to Websocket connections.
  */
-func wslistener(log *logrus.Entry, bindAddress string, cfg *WSConfig, name string, acceptF func(transport.Conn)) {
+func startHttpServer(log *logrus.Entry, bindAddress string, cfg *Config, name string, acceptF func(transport.Conn)) {
 
 	log.Infof("starting HTTP (websocket) server at bindAddress [%s]", bindAddress)
 
@@ -115,30 +116,23 @@ func wslistener(log *logrus.Entry, bindAddress string, cfg *WSConfig, name strin
 	}
 
 	// Set up the HTTP -> Websocket upgrader options (once, before we start listening)
-	upgrader.HandshakeTimeout = cfg.handshakeTimeout
-	upgrader.ReadBufferSize = cfg.readBufferSize
-	upgrader.WriteBufferSize = cfg.writeBufferSize
-	upgrader.EnableCompression = cfg.enableCompression
+	upgrader.HandshakeTimeout = cfg.HandshakeTimeout
+	upgrader.ReadBufferSize = cfg.ReadBufferSize
+	upgrader.WriteBufferSize = cfg.WriteBufferSize
+	upgrader.EnableCompression = cfg.EnableCompression
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true } // Allow all origins
 
 	router := mux.NewRouter()
 
 	router.HandleFunc("/ws", listener.handleWebsocket).Methods("GET")
 
-	cert, _ := tls.LoadX509KeyPair(cfg.serverCert, cfg.key)
-
 	httpServer := &http.Server{
 		Addr:         bindAddress,
-		WriteTimeout: cfg.writeTimeout,
-		ReadTimeout:  cfg.readTimeout,
-		IdleTimeout:  cfg.idleTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		ReadTimeout:  cfg.ReadTimeout,
+		IdleTimeout:  cfg.IdleTimeout,
 		Handler:      router,
-		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			MaxVersion:   tls.VersionTLS13,
-			MinVersion:   tlz.GetMinTlsVersion(),
-			CipherSuites: tlz.GetCipherSuites(),
-		},
+		TLSConfig:    cfg.Identity.ServerTLSConfig(),
 	}
 
 	if err := httpServer.ListenAndServeTLS("", ""); err != nil {
