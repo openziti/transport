@@ -17,6 +17,7 @@
 package ws
 
 import (
+	"crypto/tls"
 	"github.com/openziti/identity"
 	"io"
 	"net/http"
@@ -126,13 +127,16 @@ func startHttpServer(log *logrus.Entry, bindAddress string, cfg *Config, name st
 
 	router.HandleFunc("/ws", listener.handleWebsocket).Methods("GET")
 
+	tlsConfig := cfg.Identity.ServerTLSConfig()
+	tlsConfig.ClientAuth = tls.NoClientCert
+
 	httpServer := &http.Server{
 		Addr:         bindAddress,
 		WriteTimeout: cfg.WriteTimeout,
 		ReadTimeout:  cfg.ReadTimeout,
 		IdleTimeout:  cfg.IdleTimeout,
 		Handler:      router,
-		TLSConfig:    cfg.Identity.ServerTLSConfig(),
+		TLSConfig:    tlsConfig,
 	}
 
 	if err := httpServer.ListenAndServeTLS("", ""); err != nil {
