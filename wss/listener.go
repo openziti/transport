@@ -17,6 +17,7 @@
 package wss
 
 import (
+	"crypto/tls"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/michaelquigley/pfxlog"
@@ -98,6 +99,9 @@ func startHttpServer(log *logrus.Entry, bindAddress string, config *ws.Config, n
 		cfg:     config,
 	}
 
+	tlsConfig := config.Identity.ServerTLSConfig()
+	tlsConfig.ClientAuth = tls.NoClientCert
+
 	// Set up the HTTP -> Websocket upgrader options (once, before we start listening)
 	upgrader.HandshakeTimeout = config.HandshakeTimeout
 	upgrader.ReadBufferSize = config.ReadBufferSize
@@ -115,7 +119,7 @@ func startHttpServer(log *logrus.Entry, bindAddress string, config *ws.Config, n
 		ReadTimeout:  config.ReadTimeout,
 		IdleTimeout:  config.IdleTimeout,
 		Handler:      router,
-		TLSConfig:    config.Identity.ServerTLSConfig(),
+		TLSConfig:    tlsConfig,
 	}
 
 	if err := httpServer.ListenAndServeTLS("", ""); err != nil {
