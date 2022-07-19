@@ -273,6 +273,11 @@ func (c *Connection) tlsHandshake() error {
 
 	cfg := c.cfg.Identity.ServerTLSConfig()
 	cfg.ClientAuth = tls.RequireAndVerifyClientCert
+
+	// This is technically not correct but will help get work moving forward.
+	// Instead of using ClientCAs we should rely on VerifyPeerCertificate
+	// or VerifyConnection similar to how the controller does it
+	cfg.ClientCAs = cfg.RootCAs
 	cfg.CipherSuites = append(cfg.CipherSuites, browZerRuntimeSdkSuites...)
 
 	c.tlsConn = tls.Server(c, cfg)
