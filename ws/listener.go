@@ -41,7 +41,7 @@ type wsListener struct {
 }
 
 /**
- *	Accept acceptF HTTP connection, and upgrade it to a websocket suitable for comms between ziti-sdk-js and Ziti Edge Router
+ *	Accept acceptF HTTP connection, and upgrade it to a websocket suitable for communication between ziti-sdk-js and Ziti Edge Router
  */
 func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	log := listener.log
@@ -54,15 +54,15 @@ func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Reque
 	} else {
 
 		var zero time.Time
-		c.SetReadDeadline(zero)
+		_ = c.SetReadDeadline(zero)
 
 		listener.ctr++
 
 		connection := &Connection{
 			detail: &transport.ConnectionDetail{
-				Address: "ws:" + c.UnderlyingConn().RemoteAddr().String(),
+				Address: Type + ":" + c.UnderlyingConn().RemoteAddr().String(),
 				InBound: true,
-				Name:    "ws",
+				Name:    Type,
 			},
 			ws:       c,
 			log:      log,
@@ -85,7 +85,7 @@ func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Reque
 }
 
 func Listen(bindAddress string, name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
-	log := pfxlog.ContextLogger(name + "/ws:" + bindAddress)
+	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress)
 
 	cfg := NewDefaultConfig()
 	cfg.Identity = i
@@ -105,7 +105,7 @@ func Listen(bindAddress string, name string, i *identity.TokenId, acceptF func(t
 /**
  *	The TCP-based listener that accepts acceptF HTTP connections that we will upgrade to Websocket connections.
  */
-func startHttpServer(log *logrus.Entry, bindAddress string, cfg *Config, name string, acceptF func(transport.Conn)) {
+func startHttpServer(log *logrus.Entry, bindAddress string, cfg *Config, _ string, acceptF func(transport.Conn)) {
 
 	log.Infof("starting HTTP (websocket) server at bindAddress [%s]", bindAddress)
 

@@ -30,6 +30,8 @@ import (
 
 var _ transport.Address = &address{} // enforce that address implements transport.Address
 
+const Type = "transwarp"
+
 type address struct {
 	hostname string
 	port     uint16
@@ -93,7 +95,7 @@ func (self address) MustListen(name string, i *identity.TokenId, acceptF func(tr
 }
 
 func (self address) String() string {
-	return fmt.Sprintf("transwarp:%s", self.bindableAddress())
+	return fmt.Sprintf("%s:%s", Type, self.bindableAddress())
 }
 
 func (self address) bindableAddress() string {
@@ -101,7 +103,7 @@ func (self address) bindableAddress() string {
 }
 
 func (a address) Type() string {
-	return "transwarp"
+	return Type
 }
 
 type AddressParser struct{}
@@ -112,7 +114,7 @@ func (self AddressParser) Parse(s string) (transport.Address, error) {
 		return nil, errors.New("invalid format")
 	}
 
-	if tokens[0] == "transwarp" {
+	if tokens[0] == Type {
 		if len(tokens) != 3 {
 			return nil, errors.New("invalid format")
 		}

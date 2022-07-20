@@ -51,7 +51,7 @@ func Dial(endpoint *net.UDPAddr, name string, id *identity.TokenId, tcfg transpo
 
 	return &Connection{
 		detail: &transport.ConnectionDetail{
-			Address: "transwarptls:" + endpoint.String(),
+			Address: Type + ":" + endpoint.String(),
 			InBound: false,
 			Name:    name,
 		},

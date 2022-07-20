@@ -29,6 +29,8 @@ import (
 
 var _ transport.Address = &address{} // enforce that address implements transport.Address
 
+const Type = "ws"
+
 type address struct {
 	hostname string
 	port     uint16
@@ -45,7 +47,7 @@ func (a address) DialWithLocalBinding(name string, localBinding string, _ *ident
 func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
 	var wssConfig map[interface{}]interface{}
 	if tcfg != nil {
-		if v, found := tcfg["ws"]; found {
+		if v, found := tcfg[Type]; found {
 			wssConfig = v.(map[interface{}]interface{})
 		}
 	}
@@ -62,7 +64,7 @@ func (a address) MustListen(name string, i *identity.TokenId, acceptF func(trans
 }
 
 func (a address) String() string {
-	return fmt.Sprintf("ws:%s", a.bindableAddress())
+	return fmt.Sprintf("%s:%s", Type, a.bindableAddress())
 }
 
 func (a address) bindableAddress() string {
@@ -70,7 +72,7 @@ func (a address) bindableAddress() string {
 }
 
 func (a address) Type() string {
-	return "ws"
+	return Type
 }
 
 type AddressParser struct{}
@@ -81,7 +83,7 @@ func (ap AddressParser) Parse(s string) (transport.Address, error) {
 		return nil, errors.New("invalid format")
 	}
 
-	if tokens[0] == "ws" {
+	if tokens[0] == Type {
 		if len(tokens) != 3 {
 			return nil, errors.New("invalid format")
 		}

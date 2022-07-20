@@ -33,7 +33,7 @@ func Dial(destination *net.UDPAddr, name string, _ *identity.TokenId, timeout ti
 
 	return &Connection{
 		detail: &transport.ConnectionDetail{
-			Address: "udp:" + destination.String(),
+			Address: Type + ":" + destination.String(),
 			InBound: false,
 			Name:    name,
 		},
@@ -57,7 +57,7 @@ func DialWithLocalBinding(destination *net.UDPAddr, name, localBinding string, t
 
 	return &Connection{
 		detail: &transport.ConnectionDetail{
-			Address: "udp:" + destination.String(),
+			Address: Type + ":" + destination.String(),
 			InBound: false,
 			Name:    name,
 		},

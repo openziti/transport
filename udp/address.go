@@ -30,6 +30,8 @@ import (
 
 var _ transport.Address = &address{} // enforce that address implements transport.Address
 
+const Type = "udp"
+
 type address struct {
 	hostname string
 	port     uint16
@@ -68,7 +70,7 @@ func (a address) MustListen(name string, i *identity.TokenId, acceptF func(trans
 }
 
 func (a address) String() string {
-	return fmt.Sprintf("udp:%v:%v", a.hostname, a.port)
+	return fmt.Sprintf("%s:%v:%v", Type, a.hostname, a.port)
 }
 
 func (a address) bindableAddress() (*net.UDPAddr, error) {
@@ -76,7 +78,7 @@ func (a address) bindableAddress() (*net.UDPAddr, error) {
 }
 
 func (a address) Type() string {
-	return "udp"
+	return Type
 }
 
 type AddressParser struct{}
@@ -87,7 +89,7 @@ func (ap AddressParser) Parse(s string) (transport.Address, error) {
 		return nil, errors.New("invalid format")
 	}
 
-	if tokens[0] == "udp" {
+	if tokens[0] == Type {
 		if len(tokens) != 3 {
 			return nil, errors.New("invalid format")
 		}

@@ -19,8 +19,8 @@ package tls
 import (
 	"crypto/tls"
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/identity"
 	"github.com/openziti/foundation/v2/concurrenz"
+	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -28,7 +28,7 @@ import (
 )
 
 func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transport.Conn)) (io.Closer, error) {
-	log := pfxlog.ContextLogger(name + "/tls:" + bindAddress).Entry
+	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress).Entry
 
 	listener, err := tls.Listen("tcp", bindAddress, i.ServerTLSConfig())
 	if err != nil {
@@ -78,7 +78,7 @@ func (self *acceptor) acceptLoop(log *logrus.Entry) {
 		} else {
 			connection := &Connection{
 				detail: &transport.ConnectionDetail{
-					Address: "tls:" + socket.RemoteAddr().String(),
+					Address: Type + ":" + socket.RemoteAddr().String(),
 					InBound: true,
 					Name:    self.name,
 				},
