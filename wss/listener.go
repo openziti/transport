@@ -53,9 +53,9 @@ func (listener *wssListener) handleWebsocket(w http.ResponseWriter, r *http.Requ
 
 		connection := &Connection{
 			detail: &transport.ConnectionDetail{
-				Address: "wss:" + c.UnderlyingConn().RemoteAddr().String(),
+				Address: Type + ":" + c.UnderlyingConn().RemoteAddr().String(),
 				InBound: true,
-				Name:    "wss",
+				Name:    Type,
 			},
 			ws:    c,
 			log:   log,
@@ -71,7 +71,7 @@ func (listener *wssListener) handleWebsocket(w http.ResponseWriter, r *http.Requ
 	}
 }
 func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transport.Conn), transportConfig transport.Configuration) (io.Closer, error) {
-	log := pfxlog.ContextLogger(name + "/wss:" + bindAddress)
+	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress)
 
 	config := ws.NewDefaultConfig()
 	config.Identity = i

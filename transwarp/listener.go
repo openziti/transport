@@ -28,7 +28,7 @@ import (
 )
 
 func Listen(bind *net.UDPAddr, name string, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
-	log := pfxlog.ContextLogger(name + "/transwarp:" + bind.String())
+	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bind.String())
 
 	profileId := byte(0)
 	if tcfg != nil {
@@ -69,7 +69,7 @@ func acceptLoop(log *logrus.Entry, name string, listener net.Listener, acceptF f
 		} else {
 			connection := &Connection{
 				detail: &transport.ConnectionDetail{
-					Address: "transwarp:" + socket.RemoteAddr().String(),
+					Address: Type + ":" + socket.RemoteAddr().String(),
 					InBound: true,
 					Name:    name,
 				},

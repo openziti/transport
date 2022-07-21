@@ -41,7 +41,7 @@ func Listen(addr *address, name string, i *identity.TokenId, acceptF func(transp
 	for _, ptrCert := range i.ServerCert() {
 		certs = append(certs, *ptrCert)
 	}
-	
+
 	cfg := &dtls.Config{
 		Certificates: certs,
 		//ExtendedMasterSecret: dtls.RequireExtendedMasterSecret,
@@ -114,7 +114,7 @@ func (self *acceptor) acceptLoop(log *logrus.Entry) {
 
 		connection := &Connection{
 			detail: &transport.ConnectionDetail{
-				Address: "dtls:" + socket.RemoteAddr().String(),
+				Address: Type + ":" + socket.RemoteAddr().String(),
 				InBound: true,
 				Name:    self.name,
 			},

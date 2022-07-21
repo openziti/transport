@@ -46,7 +46,7 @@ func Dial(endpoint *net.UDPAddr, name string, tcfg transport.Configuration) (tra
 
 	return &Connection{
 		detail: &transport.ConnectionDetail{
-			Address: "transwarp:" + endpoint.String(),
+			Address: Type + ":" + endpoint.String(),
 			InBound: false,
 			Name:    name,
 		},

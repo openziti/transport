@@ -107,15 +107,15 @@ func (self *Config) Load(data map[interface{}]interface{}) error {
 			identityConfig, err := identity.NewConfigFromMap(identityMap)
 
 			if err != nil {
-				return fmt.Errorf("could not load wss identity section: %w", err)
+				return fmt.Errorf("could not load identity section: %w", err)
 			}
 
 			if err = identityConfig.ValidateForServerWithPathContext("transport.ws"); err != nil {
-				return fmt.Errorf("could not validate wss identity section: %w", err)
+				return fmt.Errorf("could not validate identity section: %w", err)
 			}
 
 			if self.Identity, err = identity.LoadIdentity(*identityConfig); err != nil {
-				return fmt.Errorf("could not load wss identity section: %w", err)
+				return fmt.Errorf("could not load identity section: %w", err)
 			}
 
 		} else {

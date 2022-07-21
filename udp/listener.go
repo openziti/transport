@@ -29,7 +29,7 @@ import (
 )
 
 func Listen(bindAddress *net.UDPAddr, name string, i *identity.TokenId, acceptF func(transport.Conn)) (io.Closer, error) {
-	log := pfxlog.ContextLogger(name + "/udp:" + bindAddress.String())
+	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress.String())
 
 	listener, err := udpconn.Listen("udp", bindAddress)
 	if err != nil {
@@ -56,7 +56,7 @@ func acceptLoop(log *logrus.Entry, name string, listener net.Listener, acceptF f
 			log.Info("new udp connection accepted")
 			connection := &Connection{
 				detail: &transport.ConnectionDetail{
-					Address: "udp:" + socket.RemoteAddr().String(),
+					Address: Type + ":" + socket.RemoteAddr().String(),
 					InBound: true,
 					Name:    name,
 				},

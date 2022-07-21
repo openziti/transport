@@ -35,6 +35,8 @@ type address struct {
 	port     uint16
 }
 
+const Type = "transwarptls"
+
 func (self address) Dial(name string, id *identity.TokenId, _ time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
 	endpoint, err := net.ResolveUDPAddr("udp", self.bindableAddress())
 	if err != nil {
@@ -92,7 +94,7 @@ func (self address) MustListen(name string, id *identity.TokenId, acceptF func(t
 }
 
 func (self address) String() string {
-	return fmt.Sprintf("transwarptls:%s", self.bindableAddress())
+	return fmt.Sprintf("%s:%s", Type, self.bindableAddress())
 }
 
 func (self address) bindableAddress() string {
@@ -100,7 +102,7 @@ func (self address) bindableAddress() string {
 }
 
 func (a address) Type() string {
-	return "transwarptls"
+	return Type
 }
 
 type AddressParser struct{}
@@ -111,7 +113,7 @@ func (self AddressParser) Parse(s string) (transport.Address, error) {
 		return nil, errors.New("invalid format")
 	}
 
-	if tokens[0] == "transwarptls" {
+	if tokens[0] == Type {
 		if len(tokens) != 3 {
 			return nil, errors.New("invalid format")
 		}

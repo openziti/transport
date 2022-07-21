@@ -38,7 +38,7 @@ func Dial(destination, name string, i *identity.TokenId, timeout time.Duration) 
 
 	return &Connection{
 		detail: &transport.ConnectionDetail{
-			Address: "tls:" + destination,
+			Address: Type + ":" + destination,
 			InBound: false,
 			Name:    name,
 		},
@@ -62,7 +62,7 @@ func DialWithLocalBinding(destination, name, localBinding string, i *identity.To
 
 	return &Connection{
 		detail: &transport.ConnectionDetail{
-			Address: "tls:" + destination,
+			Address: Type + ":" + destination,
 			InBound: false,
 			Name:    name,
 		},

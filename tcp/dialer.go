@@ -30,7 +30,7 @@ func Dial(destination, name string, timeout time.Duration) (transport.Conn, erro
 
 	return &Connection{
 		detail: &transport.ConnectionDetail{
-			Address: "tcp:" + destination,
+			Address: Type + ":" + destination,
 			InBound: false,
 			Name:    name,
 		},
@@ -40,7 +40,7 @@ func Dial(destination, name string, timeout time.Duration) (transport.Conn, erro
 
 func DialWithLocalBinding(destination, name, localBinding string, timeout time.Duration) (transport.Conn, error) {
 
-	dialer, err := transport.NewDialerWithLocalBinding("tcp", timeout, localBinding)
+	dialer, err := transport.NewDialerWithLocalBinding(Type, timeout, localBinding)
 
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func DialWithLocalBinding(destination, name, localBinding string, timeout time.D
 
 	return &Connection{
 		detail: &transport.ConnectionDetail{
-			Address: "tcp:" + destination,
+			Address: Type + ":" + destination,
 			InBound: false,
 			Name:    name,
 		},

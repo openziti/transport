@@ -25,7 +25,7 @@ import (
 )
 
 func Listen(bindAddress, name string, acceptF func(transport.Conn)) (io.Closer, error) {
-	log := pfxlog.ContextLogger(name + "/tcp:" + bindAddress)
+	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress)
 
 	listener, err := net.Listen("tcp", bindAddress)
 	if err != nil {
@@ -52,7 +52,7 @@ func acceptLoop(log *logrus.Entry, name string, listener net.Listener, acceptF f
 		} else {
 			connection := &Connection{
 				detail: &transport.ConnectionDetail{
-					Address: "tcp:" + socket.RemoteAddr().String(),
+					Address: Type + ":" + socket.RemoteAddr().String(),
 					InBound: true,
 					Name:    name,
 				},

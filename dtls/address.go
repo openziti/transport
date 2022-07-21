@@ -30,6 +30,8 @@ import (
 
 var _ transport.Address = &address{} // enforce that address implements transport.Address
 
+const Type = "dtls"
+
 type address struct {
 	net.UDPAddr
 	original string
@@ -61,7 +63,7 @@ func (a *address) String() string {
 }
 
 func (a address) Type() string {
-	return "dtls"
+	return Type
 }
 
 func (a *address) withError(err error) (*address, error) {
@@ -72,14 +74,14 @@ func (a *address) withError(err error) (*address, error) {
 type AddressParser struct{}
 
 func (ap AddressParser) Parse(s string) (transport.Address, error) {
-	if !strings.HasPrefix(s, "dtls:") {
+	if !strings.HasPrefix(s, Type+":") {
 		return nil, errors.Errorf("invalid dtls address '%v', doesn't start with dtls:", s)
 	}
 
 	addr := &address{
 		original: s,
 	}
-	hostPort := s[len("dtls:"):]
+	hostPort := s[len(Type+":"):]
 
 	host, portStr, err := net.SplitHostPort(hostPort)
 	if err != nil {
