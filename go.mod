@@ -8,7 +8,7 @@ require (
 	github.com/michaelquigley/pfxlog v0.6.9
 	github.com/openziti/dilithium v0.3.3
 	github.com/openziti/foundation/v2 v2.0.4
-	github.com/openziti/identity v1.0.11
+	github.com/openziti/identity v1.0.12
 	github.com/pion/dtls/v2 v2.1.5
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.0
@@ -16,6 +16,7 @@ require (
 
 require (
 	github.com/emirpasic/gods v1.18.1 // indirect
+	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
