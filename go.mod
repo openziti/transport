@@ -1,6 +1,6 @@
 module github.com/openziti/transport/v2
 
-go 1.19
+go 1.18
 
 require (
 	github.com/gorilla/mux v1.8.0
@@ -8,7 +8,7 @@ require (
 	github.com/michaelquigley/pfxlog v0.6.9
 	github.com/openziti/dilithium v0.3.3
 	github.com/openziti/foundation/v2 v2.0.5
-	github.com/openziti/identity v1.0.14
+	github.com/openziti/identity v1.0.15
 	github.com/pion/dtls/v2 v2.1.5
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.0
