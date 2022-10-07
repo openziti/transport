@@ -251,23 +251,6 @@ func (c *Connection) Close() error {
 	return c.ws.Close()
 }
 
-// pinger sends ping messages on an interval for client keep-alive.
-func (c *Connection) pinger() {
-	ticker := time.NewTicker(c.cfg.PingInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-c.done:
-			return
-		case <-ticker.C:
-			c.log.Trace("sending websocket Ping")
-			if _, err := c.write(websocket.PingMessage, []byte{}); err != nil {
-				_ = c.Close()
-			}
-		}
-	}
-}
-
 // tlsHandshake wraps the websocket in a TLS server.
 func (c *Connection) tlsHandshake() error {
 

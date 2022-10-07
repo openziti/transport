@@ -47,11 +47,8 @@ func acceptLoop(log *logrus.Entry, name string, listener net.Listener, acceptF f
 	for {
 		socket, err := listener.Accept()
 		if err != nil {
-			if netErr, ok := err.(net.Error); ok && !netErr.Temporary() {
-				log.WithField("err", err).Error("accept failed. Failure not recoverable. Exiting listen loop")
-				return
-			}
-			log.WithField("err", err).Error("accept failed")
+			log.WithField("err", err).Error("accept failed. Failure not recoverable. Exiting listen loop")
+			return
 		} else {
 			log.Info("new udp connection accepted")
 			connection := &Connection{

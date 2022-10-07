@@ -2,12 +2,12 @@ package udpconn
 
 import (
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/foundation/v2/concurrenz"
 	"github.com/openziti/foundation/v2/info"
 	"github.com/openziti/foundation/v2/mempool"
 	"github.com/pkg/errors"
 	"io"
 	"net"
+	"sync/atomic"
 	"time"
 )
 
@@ -39,7 +39,7 @@ func ListenWithPolicies(network string, addr *net.UDPAddr, newConnPolicy NewConn
 type udpListener struct {
 	addr             *net.UDPAddr
 	socket           *net.UDPConn
-	closed           concurrenz.AtomicBoolean
+	closed           atomic.Bool
 	acceptChannel    chan net.Conn
 	eventC           chan listenerEvent
 	connMap          map[string]*udpConn
@@ -48,13 +48,11 @@ type udpListener struct {
 }
 
 func (self *udpListener) Accept() (net.Conn, error) {
-	select {
-	case conn, ok := <-self.acceptChannel:
-		if !ok {
-			return nil, errors.New("listener closed")
-		}
-		return conn, nil
+	conn, ok := <-self.acceptChannel
+	if !ok {
+		return nil, errors.New("listener closed")
 	}
+	return conn, nil
 }
 
 func (self *udpListener) Close() error {
@@ -74,7 +72,7 @@ func (self *udpListener) readLoop() {
 	defer log.Info("stopping udp listener read loop")
 
 	bufPool := mempool.NewPool(16, info.MaxUdpPacketSize)
-	for !self.closed.Get() {
+	for !self.closed.Load() {
 		buf := bufPool.AcquireBuffer()
 		n, srcAddr, err := self.socket.ReadFromUDP(buf.Buf)
 		if err != nil {
@@ -157,7 +155,7 @@ func (self *udpListener) dropExpired() {
 	log := pfxlog.Logger()
 	now := time.Now()
 	for key, conn := range self.connMap {
-		if conn.closed.Get() {
+		if conn.closed.Load() {
 			delete(self.connMap, conn.srcAddr.String())
 		}
 		if self.expirationPolicy.IsExpired(now, conn.GetLastUsed()) {

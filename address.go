@@ -17,9 +17,9 @@
 package transport
 
 import (
-	"errors"
 	"fmt"
 	"github.com/openziti/identity"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net"
@@ -29,7 +29,6 @@ import (
 type Configuration map[interface{}]interface{}
 
 // Address implements the functionality provided by a generic "address".
-//
 type Address interface {
 	Dial(name string, i *identity.TokenId, timeout time.Duration, tcfg Configuration) (Conn, error)
 	DialWithLocalBinding(name string, binding string, i *identity.TokenId, timeout time.Duration, tcfg Configuration) (Conn, error)
@@ -40,13 +39,11 @@ type Address interface {
 }
 
 // AddressParser implements the functionality provided by an "address parser".
-//
 type AddressParser interface {
 	Parse(addressString string) (Address, error)
 }
 
 // AddAddressParser adds an AddressParser to the globally-configured address parsers.
-//
 func AddAddressParser(addressParser AddressParser) {
 	for _, e := range addressParsers {
 		if addressParser == e {
@@ -57,7 +54,6 @@ func AddAddressParser(addressParser AddressParser) {
 }
 
 // ParseAddress uses the globally-configured AddressParser instances to parse an address.
-//
 func ParseAddress(addressString string) (Address, error) {
 	if addressParsers == nil || len(addressParsers) < 1 {
 		return nil, errors.New("no configured address parsers")
@@ -72,7 +68,6 @@ func ParseAddress(addressString string) (Address, error) {
 }
 
 // The globally-configured address parsers.
-//
 var addressParsers = make([]AddressParser, 0)
 
 // Resolve a network interface by name or IP address
@@ -124,5 +119,5 @@ func ResolveInterface(toResolve string) (*net.Interface, error) {
 	}
 
 	// Not an IP either, not sure how to resolve this interface
-	return nil, errors.New(fmt.Sprintf("no network interface found for %s", toResolve))
+	return nil, errors.Errorf("no network interface found for %s", toResolve)
 }

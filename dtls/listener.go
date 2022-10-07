@@ -20,13 +20,13 @@ import (
 	"context"
 	"crypto/tls"
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/foundation/v2/concurrenz"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/pion/dtls/v2"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net"
+	"sync/atomic"
 	"time"
 )
 
@@ -74,7 +74,7 @@ type acceptor struct {
 	name     string
 	listener net.Listener
 	acceptF  func(transport.Conn)
-	closed   concurrenz.AtomicBoolean
+	closed   atomic.Bool
 }
 
 func (self *acceptor) Close() error {
@@ -87,19 +87,15 @@ func (self *acceptor) Close() error {
 func (self *acceptor) acceptLoop(log *logrus.Entry) {
 	defer log.Info("exited")
 
-	for !self.closed.Get() {
+	for !self.closed.Load() {
 		socket, err := self.listener.Accept()
 		if err != nil {
-			if self.closed.Get() {
+			if self.closed.Load() {
 				log.WithError(err).Info("listener closed, exiting")
 				return
 			}
-			if netErr, ok := err.(net.Error); ok && !netErr.Temporary() {
-				log.WithError(err).Error("accept failed. Failure not recoverable. Exiting listen loop")
-				return
-			}
-			log.WithError(err).Error("accept failed")
-			continue
+			log.WithError(err).Error("accept failed. Failure not recoverable. Exiting listen loop")
+			return
 		}
 
 		conn := socket.(*dtls.Conn)
