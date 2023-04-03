@@ -22,6 +22,13 @@ import (
 	"github.com/openziti/transport/v2"
 )
 
+func NewConnection(detail *transport.ConnectionDetail, conn *tls.Conn) *Connection {
+	return &Connection{
+		detail: detail,
+		Conn:   conn,
+	}
+}
+
 type Connection struct {
 	detail *transport.ConnectionDetail
 	*tls.Conn

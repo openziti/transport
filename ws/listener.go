@@ -19,6 +19,7 @@ package ws
 import (
 	"crypto/tls"
 	"github.com/openziti/identity"
+	transporttls "github.com/openziti/transport/v2/tls"
 	"io"
 	"net/http"
 	"time"
@@ -31,7 +32,22 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var upgrader = websocket.Upgrader{}
+var (
+	upgrader = websocket.Upgrader{}
+
+	browZerRuntimeSdkSuites = []uint16{
+		//vv JS-based TLS1.2 suites (here until we fully retire Forge on browser-side)
+		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		//^^
+
+		//vv WASM-based TLS1.3 suites
+		tls.TLS_AES_256_GCM_SHA384,
+		tls.TLS_CHACHA20_POLY1305_SHA256,
+		tls.TLS_AES_128_GCM_SHA256,
+		//^^
+	}
+)
 
 type wsListener struct {
 	log     *logrus.Entry
@@ -50,7 +66,7 @@ func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Reque
 	c, err := upgrader.Upgrade(w, r, nil) // upgrade from HTTP to binary socket
 
 	if err != nil {
-		log.WithField("err", err).Error("websocket upgrade failed. Failure not recoverable.")
+		log.WithError(err).Error("websocket upgrade failed. Failure not recoverable.")
 	} else {
 
 		var zero time.Time
@@ -58,29 +74,34 @@ func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Reque
 
 		listener.ctr++
 
-		connection := &Connection{
-			detail: &transport.ConnectionDetail{
-				Address: Type + ":" + c.UnderlyingConn().RemoteAddr().String(),
-				InBound: true,
-				Name:    Type,
-			},
-			ws:       c,
-			log:      log,
-			rxbuf:    newSafeBuffer(log),
-			txbuf:    newSafeBuffer(log),
-			tlsrxbuf: newSafeBuffer(log),
-			tlstxbuf: newSafeBuffer(log),
-			done:     make(chan struct{}),
-			cfg:      listener.cfg,
-			connid:   listener.ctr,
+		cfg := listener.cfg.Identity.ServerTLSConfig()
+		cfg.ClientAuth = tls.RequireAndVerifyClientCert
+
+		// This is technically not correct but will help get work moving forward.
+		// Instead of using ClientCAs we should rely on VerifyPeerCertificate
+		// or VerifyConnection similar to how the controller does it
+		cfg.ClientCAs = cfg.RootCAs
+		cfg.CipherSuites = append(cfg.CipherSuites, browZerRuntimeSdkSuites...)
+
+		connWrapper := &connImpl{
+			ws: c,
 		}
 
-		log.Debug("starting tlsHandshake()")
-
-		err := connection.tlsHandshake() // Do not proceed until the JS client can successfully complete a TLS handshake
-		if err == nil {
-			listener.acceptF(connection) // pass the Websocket to the goroutine that will validate the HELLO handshake
+		tlsConn := tls.Server(connWrapper, cfg)
+		if err = tlsConn.Handshake(); err != nil {
+			log.WithError(err).Error("unable to establish tls over websocket")
+			_ = c.Close()
+			return
 		}
+
+		detail := &transport.ConnectionDetail{
+			Address: Type + ":" + c.UnderlyingConn().RemoteAddr().String(),
+			InBound: true,
+			Name:    Type,
+		}
+
+		connection := transporttls.NewConnection(detail, tlsConn)
+		listener.acceptF(connection) // pass the Websocket to the goroutine that will validate the HELLO handshake
 	}
 }
 
