@@ -73,19 +73,17 @@ func (self *connImpl) pinger() {
 	ticker := time.NewTicker(self.cfg.PingInterval)
 	defer ticker.Stop()
 	for {
-		select {
-		case <-ticker.C:
-			self.log.Debug("connImpl.pinger sending websocket Ping")
-			if err := self.ws.WriteMessage(websocket.PingMessage, []byte("browzerkeepalive")); err != nil {
-				self.log.Warnf("connImpl.pinger: %v", err)
-				_ = self.ws.Close()
-				return
-			}
-			if time.Since(lastResponse) > self.cfg.PongTimeout {
-				self.log.Errorf("connImpl.pinger PongTimeout exceeded, closing WebSocket")
-				self.ws.Close()
-				return
-			}
+		<-ticker.C
+		self.log.Debug("connImpl.pinger sending websocket Ping")
+		if err := self.ws.WriteMessage(websocket.PingMessage, []byte("browzerkeepalive")); err != nil {
+			self.log.Warnf("connImpl.pinger: %v", err)
+			_ = self.ws.Close()
+			return
+		}
+		if time.Since(lastResponse) > self.cfg.PongTimeout {
+			self.log.Errorf("connImpl.pinger PongTimeout exceeded, closing WebSocket")
+			self.ws.Close()
+			return
 		}
 	}
 }
