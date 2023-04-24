@@ -18,11 +18,12 @@ package ws
 
 import (
 	"crypto/tls"
-	"github.com/openziti/identity"
-	transporttls "github.com/openziti/transport/v2/tls"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/openziti/identity"
+	transporttls "github.com/openziti/transport/v2/tls"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -36,11 +37,6 @@ var (
 	upgrader = websocket.Upgrader{}
 
 	browZerRuntimeSdkSuites = []uint16{
-		//vv JS-based TLS1.2 suites (here until we fully retire Forge on browser-side)
-		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		//^^
-
 		//vv WASM-based TLS1.3 suites
 		tls.TLS_AES_256_GCM_SHA384,
 		tls.TLS_CHACHA20_POLY1305_SHA256,
@@ -57,7 +53,7 @@ type wsListener struct {
 }
 
 /**
- *	Accept acceptF HTTP connection, and upgrade it to a websocket suitable for communication between ziti-sdk-js and Ziti Edge Router
+ *	Accept acceptF HTTP connection, and upgrade it to a websocket suitable for communication between ziti-browzer-runtime and Ziti Edge Router
  */
 func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	log := listener.log
@@ -84,7 +80,9 @@ func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Reque
 		cfg.CipherSuites = append(cfg.CipherSuites, browZerRuntimeSdkSuites...)
 
 		connWrapper := &connImpl{
-			ws: c,
+			ws:  c,
+			log: log,
+			cfg: listener.cfg,
 		}
 
 		tlsConn := tls.Server(connWrapper, cfg)
@@ -102,6 +100,12 @@ func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Reque
 
 		connection := transporttls.NewConnection(detail, tlsConn)
 		listener.acceptF(connection) // pass the Websocket to the goroutine that will validate the HELLO handshake
+
+		// keep the Websocket alive via ping/pong control-frame msgs
+		// so it doesn't close unnecessarily thus causing ZBR to encounter
+		// unnecessary 'channel unavailable' conditions thus causing too
+		// frequent Page reboots on the client-side
+		connWrapper.pinger()
 	}
 }
 
