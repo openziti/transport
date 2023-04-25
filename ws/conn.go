@@ -17,14 +17,18 @@
 package ws
 
 import (
-	"github.com/gorilla/websocket"
 	"net"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 )
 
 type connImpl struct {
 	ws       *websocket.Conn
 	leftover []byte
+	log      *logrus.Entry
+	cfg      *Config
 }
 
 func (self *connImpl) Read(b []byte) (int, error) {
@@ -53,6 +57,35 @@ func (self *connImpl) Write(b []byte) (int, error) {
 
 func (self *connImpl) Close() error {
 	return self.ws.Close()
+}
+
+// pinger sends ping messages on an interval for client keep-alive.
+func (self *connImpl) pinger() {
+
+	lastResponse := time.Now()
+
+	self.ws.SetPongHandler(func(msg string) error {
+		self.log.Debugf("connImpl.pongHandler received websocket Pong: %s", msg)
+		lastResponse = time.Now()
+		return nil
+	})
+
+	ticker := time.NewTicker(self.cfg.PingInterval)
+	defer ticker.Stop()
+	for {
+		<-ticker.C
+		self.log.Debug("connImpl.pinger sending websocket Ping")
+		if err := self.ws.WriteMessage(websocket.PingMessage, []byte("browzerkeepalive")); err != nil {
+			self.log.Warnf("connImpl.pinger: %v", err)
+			_ = self.ws.Close()
+			return
+		}
+		if time.Since(lastResponse) > self.cfg.PongTimeout {
+			self.log.Errorf("connImpl.pinger PongTimeout exceeded, closing WebSocket")
+			self.ws.Close()
+			return
+		}
+	}
 }
 
 func (self *connImpl) LocalAddr() net.Addr {
