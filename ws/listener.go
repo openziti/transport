@@ -105,7 +105,7 @@ func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Reque
 		// so it doesn't close unnecessarily thus causing ZBR to encounter
 		// unnecessary 'channel unavailable' conditions thus causing too
 		// frequent Page reboots on the client-side
-		connWrapper.pinger()
+		go connWrapper.pinger()
 	}
 }
 
