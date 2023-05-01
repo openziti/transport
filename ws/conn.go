@@ -18,6 +18,7 @@ package ws
 
 import (
 	"net"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -29,6 +30,7 @@ type connImpl struct {
 	leftover []byte
 	log      *logrus.Entry
 	cfg      *Config
+	mu       sync.Mutex
 }
 
 func (self *connImpl) Read(b []byte) (int, error) {
@@ -49,6 +51,8 @@ func (self *connImpl) Read(b []byte) (int, error) {
 }
 
 func (self *connImpl) Write(b []byte) (int, error) {
+	self.mu.Lock()
+	defer self.mu.Unlock()
 	if err := self.ws.WriteMessage(websocket.BinaryMessage, b); err != nil {
 		return 0, err
 	}
@@ -75,7 +79,10 @@ func (self *connImpl) pinger() {
 	for {
 		<-ticker.C
 		self.log.Debug("connImpl.pinger sending websocket Ping")
-		if err := self.ws.WriteMessage(websocket.PingMessage, []byte("browzerkeepalive")); err != nil {
+		self.mu.Lock()
+		err := self.ws.WriteMessage(websocket.PingMessage, []byte("browzerkeepalive"))
+		self.mu.Unlock()
+		if err != nil {
 			self.log.Warnf("connImpl.pinger: %v", err)
 			_ = self.ws.Close()
 			return
