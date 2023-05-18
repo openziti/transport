@@ -8,10 +8,10 @@ require (
 	github.com/michaelquigley/pfxlog v0.6.10
 	github.com/openziti/dilithium v0.3.3
 	github.com/openziti/foundation/v2 v2.0.22
-	github.com/openziti/identity v1.0.49
+	github.com/openziti/identity v1.0.50
 	github.com/pion/dtls/v2 v2.2.6
 	github.com/pkg/errors v0.9.1
-	github.com/sirupsen/logrus v1.9.1
+	github.com/sirupsen/logrus v1.9.2
 )
 
 require (
