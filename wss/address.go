@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
+	"github.com/openziti/transport/v2/ws"
 	"io"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -36,12 +38,14 @@ type address struct {
 	port     uint16
 }
 
-func (a address) Dial(_ string, _ *identity.TokenId, _ time.Duration, _ transport.Configuration) (transport.Conn, error) {
-	panic("Dial is unsupported for wss transport")
+func (a address) Dial(name string, i *identity.TokenId, t time.Duration, c transport.Configuration) (transport.Conn, error) {
+	u := url.URL{Scheme: "wss", Host: a.bindableAddress(), Path: "/wss"} // ws module supports wss connections
+	return ws.Dial(name, u, i, t, c)
 }
 
-func (a address) DialWithLocalBinding(_ string, _ string, _ *identity.TokenId, _ time.Duration, _ transport.Configuration) (transport.Conn, error) {
-	panic("Dial is unsupported for wss transport")
+func (a address) DialWithLocalBinding(name string, localBinding string, i *identity.TokenId, t time.Duration, c transport.Configuration) (transport.Conn, error) {
+	u := url.URL{Scheme: "wss", Host: a.bindableAddress(), Path: "/wss"} // ws module supports wss connections
+	return ws.DialWithLocalBinding(name, u, localBinding, i, t, c)
 }
 
 func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), config transport.Configuration) (io.Closer, error) {
