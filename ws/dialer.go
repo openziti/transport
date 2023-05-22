@@ -36,7 +36,7 @@ func Dial(name string, u url.URL, i *identity.TokenId, _ time.Duration, _ transp
 
 	wsConn, httpResp, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	log.Debugf("httpResp %s", httpResp.Status)
 
