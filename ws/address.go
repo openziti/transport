@@ -30,7 +30,7 @@ import (
 var _ transport.Address = &address{} // enforce that address implements transport.Address
 
 const Type = "ws"
-const unsupported_err = "transport.ws not supported. use transport.wss"
+const unsupportedErr = "transport.ws not supported. use transport.wss"
 
 type address struct {
 	hostname string
@@ -38,19 +38,19 @@ type address struct {
 }
 
 func (address) Dial(name string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
-	return nil, errors.New(unsupported_err)
+	return nil, errors.New(unsupportedErr)
 }
 
 func (address) DialWithLocalBinding(name string, binding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
-	return nil, errors.New(unsupported_err)
+	return nil, errors.New(unsupportedErr)
 }
 
 func (address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
-	return nil, errors.New(unsupported_err)
+	return nil, errors.New(unsupportedErr)
 }
 
 func (address) MustListen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) io.Closer {
-	panic(unsupported_err)
+	panic(unsupportedErr)
 }
 
 func (a address) String() string {
