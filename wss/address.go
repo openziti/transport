@@ -39,12 +39,12 @@ type address struct {
 }
 
 func (a address) Dial(name string, i *identity.TokenId, t time.Duration, c transport.Configuration) (transport.Conn, error) {
-	u := url.URL{Scheme: "wss", Host: a.bindableAddress(), Path: "/ws"} // wss scheme is intentional/required
+	u := url.URL{Scheme: "wss", Host: a.bindableAddress(), Path: "/ws"}
 	return Dial(name, u, i, t, c)
 }
 
 func (a address) DialWithLocalBinding(name string, localBinding string, i *identity.TokenId, t time.Duration, c transport.Configuration) (transport.Conn, error) {
-	u := url.URL{Scheme: "wss", Host: a.bindableAddress(), Path: "/ws"} // wss scheme is intentional/required
+	u := url.URL{Scheme: "wss", Host: a.bindableAddress(), Path: "/ws"}
 	return DialWithLocalBinding(name, u, localBinding, i, t, c)
 }
 
