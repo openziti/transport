@@ -1,4 +1,4 @@
-//go:build !js
+//go:build js
 
 /*
 	Copyright NetFoundry Inc.
@@ -16,36 +16,41 @@
 	limitations under the License.
 */
 
-package ws
+package wss
 
 import (
+	"context"
 	"crypto/tls"
 	"net/url"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"nhooyr.io/websocket"
+
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	transporttls "github.com/openziti/transport/v2/tls"
 	log "github.com/sirupsen/logrus"
 )
 
-func Dial(name string, u url.URL, i *identity.TokenId, _ time.Duration, _ transport.Configuration) (transport.Conn, error) {
-	tlsConfig := ClientTLSConfig(u, i)
-	websocket.DefaultDialer.TLSClientConfig = tlsConfig
+func Dial(name string, u url.URL, i *identity.TokenId, to time.Duration, _ transport.Configuration) (transport.Conn, error) {
+	ctx, _ := context.WithTimeout(context.Background(), time.Minute) //cancel //time.Minute)
 
-	wsConn, httpResp, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	log.Debugf("Dialing websocket: %", u.String())
+	c, httpResp, err := websocket.Dial(ctx, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("httpResp %s", httpResp.Status)
+	log.Debugf("httpResp %v", httpResp)
+
+	conn := websocket.NetConn(ctx, c, websocket.MessageBinary)
+	tlsConn := tls.Client(conn, ClientTLSConfig(u, i))
 
 	detail := &transport.ConnectionDetail{
 		Address: Type + ":" + u.Host,
 		InBound: false,
 		Name:    name,
 	}
-	return transporttls.NewConnection(detail, tls.Client(&connImpl{ws: wsConn}, tlsConfig)), nil
+	return transporttls.NewConnection(detail, tlsConn), nil
 }
 
 func DialWithLocalBinding(name string, u url.URL, localBinding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {

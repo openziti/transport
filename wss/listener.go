@@ -18,106 +18,148 @@ package wss
 
 import (
 	"crypto/tls"
+	"io"
+	"net/http"
+	"time"
+
+	"github.com/openziti/identity"
+	transporttls "github.com/openziti/transport/v2/tls"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
-	"github.com/openziti/transport/v2/ws"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"io"
-	"net/http"
 )
 
-var upgrader = websocket.Upgrader{}
+var (
+	upgrader = websocket.Upgrader{}
 
-type wssListener struct {
+	browZerRuntimeSdkSuites = []uint16{
+		//vv WASM-based TLS1.3 suites
+		tls.TLS_AES_256_GCM_SHA384,
+		tls.TLS_CHACHA20_POLY1305_SHA256,
+		tls.TLS_AES_128_GCM_SHA256,
+		//^^
+	}
+)
+
+type wsListener struct {
 	log     *logrus.Entry
 	acceptF func(transport.Conn)
-	cfg     *ws.Config
+	cfg     *Config
+	ctr     int64
 }
 
 /**
- *	Accept acceptF HTTP connection, and upgrade it to a websocket suitable for comms between browZer and Ziti Edge Router
+ *	Accept acceptF HTTP connection, and upgrade it to a websocket suitable for communication between ziti-browzer-runtime and Ziti Edge Router
  */
-func (listener *wssListener) handleWebsocket(w http.ResponseWriter, r *http.Request) {
+func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	log := listener.log
 	log.Info("entered")
 
 	c, err := upgrader.Upgrade(w, r, nil) // upgrade from HTTP to binary socket
 
 	if err != nil {
-		log.WithField("err", err).Error("websocket upgrade failed. Failure not recoverable.")
+		log.WithError(err).Error("websocket upgrade failed. Failure not recoverable.")
 	} else {
 
-		connection := &Connection{
-			detail: &transport.ConnectionDetail{
-				Address: Type + ":" + c.UnderlyingConn().RemoteAddr().String(),
-				InBound: true,
-				Name:    Type,
-			},
-			ws:    c,
-			log:   log,
-			rxbuf: newSafeBuffer(log),
-			txbuf: newSafeBuffer(log),
-			done:  make(chan struct{}),
-			cfg:   listener.cfg,
+		var zero time.Time
+		_ = c.SetReadDeadline(zero)
+
+		listener.ctr++
+
+		cfg := listener.cfg.Identity.ServerTLSConfig()
+		cfg.ClientAuth = tls.RequireAndVerifyClientCert
+
+		// This is technically not correct but will help get work moving forward.
+		// Instead of using ClientCAs we should rely on VerifyPeerCertificate
+		// or VerifyConnection similar to how the controller does it
+		cfg.ClientCAs = cfg.RootCAs
+		cfg.CipherSuites = append(cfg.CipherSuites, browZerRuntimeSdkSuites...)
+
+		connWrapper := &connImpl{
+			ws:  c,
+			log: log,
+			cfg: listener.cfg,
 		}
 
-		go connection.pinger()
+		tlsConn := tls.Server(connWrapper, cfg)
+		if err = tlsConn.Handshake(); err != nil {
+			log.WithError(err).Error("unable to establish tls over websocket")
+			_ = c.Close()
+			return
+		}
 
+		detail := &transport.ConnectionDetail{
+			Address: Type + ":" + c.UnderlyingConn().RemoteAddr().String(),
+			InBound: true,
+			Name:    Type,
+		}
+
+		connection := transporttls.NewConnection(detail, tlsConn)
 		listener.acceptF(connection) // pass the Websocket to the goroutine that will validate the HELLO handshake
+
+		// keep the Websocket alive via ping/pong control-frame msgs
+		// so it doesn't close unnecessarily thus causing ZBR to encounter
+		// unnecessary 'channel unavailable' conditions thus causing too
+		// frequent Page reboots on the client-side
+		go connWrapper.pinger()
 	}
 }
-func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transport.Conn), transportConfig transport.Configuration) (io.Closer, error) {
+
+func Listen(bindAddress string, name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
 	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress)
 
-	config := ws.NewDefaultConfig()
-	config.Identity = i
+	cfg := NewDefaultConfig()
+	cfg.Identity = i
 
-	if transportConfig != nil {
-		if err := config.Load(transportConfig); err != nil {
+	if tcfg != nil {
+		if err := cfg.Load(tcfg); err != nil {
 			return nil, errors.Wrap(err, "load configuration")
 		}
 	}
-	logrus.Infof(config.Dump("wss.Config"))
+	logrus.Infof(cfg.Dump("ws.Config"))
 
-	go startHttpServer(log.Entry, bindAddress, config, name, acceptF)
+	go startHttpServer(log.Entry, bindAddress, cfg, name, acceptF)
 
 	return nil, nil
 }
 
-// startHttpServer will start an HTTP server that will upgrade to WebSocket connections on request
-func startHttpServer(log *logrus.Entry, bindAddress string, config *ws.Config, name string, acceptF func(transport.Conn)) {
+/**
+ *	The TCP-based listener that accepts acceptF HTTP connections that we will upgrade to Websocket connections.
+ */
+func startHttpServer(log *logrus.Entry, bindAddress string, cfg *Config, _ string, acceptF func(transport.Conn)) {
 
 	log.Infof("starting HTTP (websocket) server at bindAddress [%s]", bindAddress)
 
-	listener := &wssListener{
+	listener := &wsListener{
 		log:     log,
 		acceptF: acceptF,
-		cfg:     config,
+		cfg:     cfg,
+		ctr:     0,
 	}
 
-	tlsConfig := config.Identity.ServerTLSConfig()
-	tlsConfig.ClientAuth = tls.NoClientCert
-
 	// Set up the HTTP -> Websocket upgrader options (once, before we start listening)
-	upgrader.HandshakeTimeout = config.HandshakeTimeout
-	upgrader.ReadBufferSize = config.ReadBufferSize
-	upgrader.WriteBufferSize = config.WriteBufferSize
-	upgrader.EnableCompression = config.EnableCompression
+	upgrader.HandshakeTimeout = cfg.HandshakeTimeout
+	upgrader.ReadBufferSize = cfg.ReadBufferSize
+	upgrader.WriteBufferSize = cfg.WriteBufferSize
+	upgrader.EnableCompression = cfg.EnableCompression
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true } // Allow all origins
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/wss", listener.handleWebsocket).Methods("GET")
+	router.HandleFunc("/ws", listener.handleWebsocket).Methods("GET")
+
+	tlsConfig := cfg.Identity.ServerTLSConfig()
+	tlsConfig.ClientAuth = tls.NoClientCert
 
 	httpServer := &http.Server{
 		Addr:         bindAddress,
-		WriteTimeout: config.WriteTimeout,
-		ReadTimeout:  config.ReadTimeout,
-		IdleTimeout:  config.IdleTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		ReadTimeout:  cfg.ReadTimeout,
+		IdleTimeout:  cfg.IdleTimeout,
 		Handler:      router,
 		TLSConfig:    tlsConfig,
 	}

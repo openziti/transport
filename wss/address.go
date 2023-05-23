@@ -19,14 +19,14 @@ package wss
 import (
 	"errors"
 	"fmt"
-	"github.com/openziti/identity"
-	"github.com/openziti/transport/v2"
-	"github.com/openziti/transport/v2/ws"
 	"io"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/openziti/identity"
+	"github.com/openziti/transport/v2"
 )
 
 var _ transport.Address = &address{} // enforce that address implements transport.Address
@@ -39,23 +39,22 @@ type address struct {
 }
 
 func (a address) Dial(name string, i *identity.TokenId, t time.Duration, c transport.Configuration) (transport.Conn, error) {
-	u := url.URL{Scheme: "wss", Host: a.bindableAddress(), Path: "/wss"} // ws module supports wss connections
-	return ws.Dial(name, u, i, t, c)
+	u := url.URL{Scheme: "wss", Host: a.bindableAddress(), Path: "/ws"} // wss scheme is intentional/required
+	return Dial(name, u, i, t, c)
 }
 
 func (a address) DialWithLocalBinding(name string, localBinding string, i *identity.TokenId, t time.Duration, c transport.Configuration) (transport.Conn, error) {
-	u := url.URL{Scheme: "wss", Host: a.bindableAddress(), Path: "/wss"} // ws module supports wss connections
-	return ws.DialWithLocalBinding(name, u, localBinding, i, t, c)
+	u := url.URL{Scheme: "wss", Host: a.bindableAddress(), Path: "/ws"} // wss scheme is intentional/required
+	return DialWithLocalBinding(name, u, localBinding, i, t, c)
 }
 
-func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), config transport.Configuration) (io.Closer, error) {
+func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
 	var wssConfig map[interface{}]interface{}
-	if config != nil {
-		if v, found := config["wss"]; found {
+	if tcfg != nil {
+		if v, found := tcfg[Type]; found {
 			wssConfig = v.(map[interface{}]interface{})
 		}
 	}
-
 	return Listen(a.bindableAddress(), name, i, acceptF, wssConfig)
 }
 

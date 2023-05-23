@@ -19,51 +19,38 @@ package ws
 import (
 	"errors"
 	"fmt"
+	"github.com/openziti/identity"
+	"github.com/openziti/transport/v2"
 	"io"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/openziti/identity"
-	"github.com/openziti/transport/v2"
 )
 
 var _ transport.Address = &address{} // enforce that address implements transport.Address
 
 const Type = "ws"
+const unsupported_err = "transport.ws not supported. use transport.wss"
 
 type address struct {
 	hostname string
 	port     uint16
 }
 
-func (a address) Dial(name string, i *identity.TokenId, t time.Duration, c transport.Configuration) (transport.Conn, error) {
-	u := url.URL{Scheme: "wss", Host: a.bindableAddress(), Path: "/ws"} // wss scheme is intentional/required
-	return Dial(name, u, i, t, c)
+func (address) Dial(name string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
+	return nil, errors.New(unsupported_err)
 }
 
-func (a address) DialWithLocalBinding(name string, localBinding string, i *identity.TokenId, t time.Duration, c transport.Configuration) (transport.Conn, error) {
-	u := url.URL{Scheme: "wss", Host: a.bindableAddress(), Path: "/ws"} // wss scheme is intentional/required
-	return DialWithLocalBinding(name, u, localBinding, i, t, c)
+func (address) DialWithLocalBinding(name string, binding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
+	return nil, errors.New(unsupported_err)
 }
 
-func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
-	var wssConfig map[interface{}]interface{}
-	if tcfg != nil {
-		if v, found := tcfg[Type]; found {
-			wssConfig = v.(map[interface{}]interface{})
-		}
-	}
-	return Listen(a.bindableAddress(), name, i, acceptF, wssConfig)
+func (address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
+	return nil, errors.New(unsupported_err)
 }
 
-func (a address) MustListen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) io.Closer {
-	closer, err := a.Listen(name, i, acceptF, tcfg)
-	if err != nil {
-		panic(err)
-	}
-	return closer
+func (address) MustListen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) io.Closer {
+	panic(unsupported_err)
 }
 
 func (a address) String() string {
