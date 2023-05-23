@@ -45,7 +45,7 @@ var (
 	}
 )
 
-type wsListener struct {
+type wssListener struct {
 	log     *logrus.Entry
 	acceptF func(transport.Conn)
 	cfg     *Config
@@ -55,7 +55,7 @@ type wsListener struct {
 /**
  *	Accept acceptF HTTP connection, and upgrade it to a websocket suitable for communication between ziti-browzer-runtime and Ziti Edge Router
  */
-func (listener *wsListener) handleWebsocket(w http.ResponseWriter, r *http.Request) {
+func (listener *wssListener) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	log := listener.log
 	log.Info("entered")
 
@@ -134,7 +134,7 @@ func startHttpServer(log *logrus.Entry, bindAddress string, cfg *Config, _ strin
 
 	log.Infof("starting HTTP (websocket) server at bindAddress [%s]", bindAddress)
 
-	listener := &wsListener{
+	listener := &wssListener{
 		log:     log,
 		acceptF: acceptF,
 		cfg:     cfg,
