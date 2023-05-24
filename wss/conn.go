@@ -14,7 +14,7 @@
 	limitations under the License.
 */
 
-package ws
+package wss
 
 import (
 	"net"

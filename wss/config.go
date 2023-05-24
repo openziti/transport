@@ -1,4 +1,4 @@
-package ws
+package wss
 
 import (
 	"fmt"
@@ -27,6 +27,7 @@ func NewDefaultConfig() *Config {
 		ReadTimeout:       transport.DefaultWsReadTimeout,
 		IdleTimeout:       transport.DefaultWsIdleTimeout,
 		PongTimeout:       transport.DefaultWsPongTimeout,
+		PingInterval:      transport.DefaultWsPingInterval,
 		HandshakeTimeout:  transport.DefaultWsHandshakeTimeout,
 		ReadBufferSize:    transport.DefaultWsReadBufferSize,
 		WriteBufferSize:   transport.DefaultWsWriteBufferSize,
@@ -110,7 +111,7 @@ func (self *Config) Load(data map[interface{}]interface{}) error {
 				return fmt.Errorf("could not load identity section: %w", err)
 			}
 
-			if err = identityConfig.ValidateForServerWithPathContext("transport.ws"); err != nil {
+			if err = identityConfig.ValidateForServerWithPathContext("transport.wss"); err != nil {
 				return fmt.Errorf("could not validate identity section: %w", err)
 			}
 
