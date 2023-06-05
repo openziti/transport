@@ -11,7 +11,7 @@ require (
 	github.com/openziti/identity v1.0.55
 	github.com/pion/dtls/v2 v2.2.7
 	github.com/pkg/errors v0.9.1
-	github.com/sirupsen/logrus v1.9.2
+	github.com/sirupsen/logrus v1.9.3
 	nhooyr.io/websocket v1.8.7
 )
 
