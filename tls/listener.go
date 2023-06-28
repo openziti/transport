@@ -17,71 +17,201 @@
 package tls
 
 import (
+	"context"
 	"crypto/tls"
-	"github.com/michaelquigley/pfxlog"
+	"fmt"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net"
+	"sync"
 	"sync/atomic"
 )
 
-func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transport.Conn)) (io.Closer, error) {
-	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress).Entry
+func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transport.Conn), protocols ...string) (io.Closer, error) {
+	//log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress).Entry
 
-	listener, err := tls.Listen("tcp", bindAddress, i.ServerTLSConfig())
+	config := i.ServerTLSConfig().Clone()
+	if len(protocols) > 0 {
+		config.NextProtos = append(config.NextProtos, protocols...)
+	}
+	result := &acceptor{
+		name:    name,
+		tls:     config,
+		acceptF: acceptF,
+	}
+
+	err := registerWithSharedListener(bindAddress, result)
 	if err != nil {
 		return nil, err
 	}
-
-	result := &acceptor{
-		name:     name,
-		listener: listener,
-		acceptF:  acceptF,
-	}
-
-	go result.acceptLoop(log)
 
 	return result, nil
 }
 
 type acceptor struct {
 	name     string
-	listener net.Listener
+	listener *sharedListener
+	tls      *tls.Config
 	acceptF  func(conn transport.Conn)
 	closed   atomic.Bool
 }
 
 func (self *acceptor) Close() error {
 	if self.closed.CompareAndSwap(false, true) {
-		return self.listener.Close()
+		self.listener.remove(self)
+		return nil
 	}
 	return nil
 }
 
-func (self *acceptor) acceptLoop(log *logrus.Entry) {
-	defer log.Info("exited")
+//func (self *acceptor) acceptLoop(log *logrus.Entry) {
+//	defer log.Info("exited")
+//
+//	for !self.closed.Load() {
+//		socket, err := self.listener.Accept()
+//		if err != nil {
+//			if self.closed.Load() {
+//				log.WithField("err", err).Info("listener closed, exiting")
+//				return
+//			}
+//			log.WithField("err", err).Error("accept failed. Failure not recoverable. Exiting listen loop")
+//			return
+//		} else {
+//			connection := &Connection{
+//				detail: &transport.ConnectionDetail{
+//					Address: Type + ":" + socket.RemoteAddr().String(),
+//					InBound: true,
+//					Name:    self.name,
+//				},
+//				Conn: socket.(*tls.Conn),
+//			}
+//			self.acceptF(connection)
+//		}
+//	}
+//}
 
-	for !self.closed.Load() {
-		socket, err := self.listener.Accept()
+var sharedListeners sync.Map
+
+func init() {
+}
+
+func registerWithSharedListener(bindAddress string, acc *acceptor) error {
+	sl := &sharedListener{
+		address: bindAddress,
+	}
+	sl.tlsCfg = &tls.Config{
+		GetConfigForClient: sl.getConfig,
+	}
+
+	el, found := sharedListeners.LoadOrStore(bindAddress, sl)
+	sl = el.(*sharedListener)
+
+	if !found {
+		sl.acceptors = make(map[string]*acceptor)
+		sock, err := tls.Listen("tcp", bindAddress, sl.tlsCfg)
 		if err != nil {
-			if self.closed.Load() {
-				log.WithField("err", err).Info("listener closed, exiting")
-				return
-			}
-			log.WithField("err", err).Error("accept failed. Failure not recoverable. Exiting listen loop")
+			sharedListeners.Delete(bindAddress)
+			return err
+		}
+		sl.sock = sock
+		go sl.runAccept()
+	}
+
+	protos := acc.tls.NextProtos
+	if protos == nil {
+		protos = append(protos, "")
+	}
+
+	// check for conflict
+	for _, proto := range protos {
+		if _, exists := sl.acceptors[proto]; exists {
+			return fmt.Errorf("handler for protocol[%s] already exists", proto)
+		}
+	}
+
+	acc.listener = sl
+	for _, proto := range protos {
+		sl.acceptors[proto] = acc
+	}
+
+	return nil
+}
+
+type sharedListener struct {
+	address   string
+	tlsCfg    *tls.Config
+	acceptors map[string]*acceptor // proto -> acceptor
+	ctx       context.Context
+	sock      net.Listener
+}
+
+func (self *sharedListener) runAccept() {
+	for {
+		c, err := self.sock.Accept()
+		if err != nil {
 			return
-		} else {
+		}
+
+		conn := c.(*tls.Conn)
+		err = conn.Handshake()
+		if err != nil {
+			_ = conn.Close()
+			continue
+		}
+
+		proto := conn.ConnectionState().NegotiatedProtocol
+
+		acc, found := self.acceptors[proto]
+		if found {
 			connection := &Connection{
 				detail: &transport.ConnectionDetail{
-					Address: Type + ":" + socket.RemoteAddr().String(),
+					Address: Type + ":" + conn.RemoteAddr().String(),
 					InBound: true,
-					Name:    self.name,
+					Name:    acc.name,
 				},
-				Conn: socket.(*tls.Conn),
+				Conn: conn,
 			}
-			self.acceptF(connection)
+			acc.acceptF(connection)
+		} else {
+			_ = conn.Close()
 		}
+	}
+}
+
+func (self *sharedListener) getConfig(info *tls.ClientHelloInfo) (*tls.Config, error) {
+	protos := info.SupportedProtos
+	if protos == nil {
+		protos = append(protos, "")
+	}
+
+	for _, proto := range protos {
+		acc, found := self.acceptors[proto]
+		if found {
+			cfg := acc.tls
+			if cfg.GetConfigForClient != nil {
+				c, _ := cfg.GetConfigForClient(info)
+				if c != nil {
+					return c, nil
+				}
+			}
+			return cfg, nil
+		}
+	}
+
+	return nil, fmt.Errorf("not handler for requested protocols %+v", protos)
+}
+
+func (self *sharedListener) remove(acc *acceptor) {
+	if len(acc.tls.NextProtos) == 0 {
+		delete(self.acceptors, "")
+	} else {
+		for _, p := range acc.tls.NextProtos {
+			delete(self.acceptors, p)
+		}
+	}
+	if len(self.acceptors) == 0 {
+		sharedListeners.Delete(self.address)
+		_ = self.sock.Close()
 	}
 }

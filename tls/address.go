@@ -36,8 +36,13 @@ type address struct {
 	port     uint16
 }
 
-func (a address) Dial(name string, i *identity.TokenId, timeout time.Duration, _ transport.Configuration) (transport.Conn, error) {
-	return Dial(a.bindableAddress(), name, i, timeout)
+func (a address) Dial(name string, i *identity.TokenId, timeout time.Duration, cfg transport.Configuration) (transport.Conn, error) {
+	var protocols []string
+	proto, found := cfg["protocol"]
+	if found {
+		protocols = append(protocols, proto.(string))
+	}
+	return Dial(a.bindableAddress(), name, i, timeout, protocols...)
 }
 
 func (a address) DialWithLocalBinding(name string, localBinding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
