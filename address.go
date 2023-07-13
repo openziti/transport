@@ -38,6 +38,12 @@ type Address interface {
 	Type() string
 }
 
+type HostPortAddress interface {
+	Address
+	Hostname() string
+	Port() uint16
+}
+
 // AddressParser implements the functionality provided by an "address parser".
 type AddressParser interface {
 	Parse(addressString string) (Address, error)
