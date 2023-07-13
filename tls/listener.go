@@ -31,7 +31,8 @@ import (
 	"time"
 )
 
-var noProtocol = []string{""}
+var noProtocol = ""
+var handlerKey = struct{}{}
 
 func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transport.Conn), protocols ...string) (io.Closer, error) {
 	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress).Entry
@@ -195,7 +196,7 @@ func (self *sharedListener) processConn(conn *tls.Conn) {
 	// sharedListener.getConfig will select the right handler during handshake based on ClientHelloInfo
 	// no need to do another look up here
 	var handler *protocolHandler
-	hsCtx, cancelF := context.WithTimeout(context.WithValue(self.ctx, "handler", &handler), 5*time.Second)
+	hsCtx, cancelF := context.WithTimeout(context.WithValue(self.ctx, handlerKey, &handler), 5*time.Second)
 	defer cancelF()
 
 	err := conn.HandshakeContext(hsCtx)
@@ -246,11 +247,11 @@ func (self *sharedListener) getConfig(info *tls.ClientHelloInfo) (*tls.Config, e
 	log.Debug("client requesting protocols = ", protos)
 
 	if protos == nil {
-		protos = noProtocol
+		protos = append(protos, noProtocol)
 	}
 
 	ctx := info.Context()
-	handler := ctx.Value("handler").(**protocolHandler)
+	handler := ctx.Value(handlerKey).(**protocolHandler)
 
 	self.mtx.RLock()
 	defer self.mtx.RUnlock()
@@ -281,10 +282,10 @@ func (self *sharedListener) remove(h *protocolHandler) {
 
 	protos := h.tls.NextProtos
 	if protos == nil {
-		protos = noProtocol
+		protos = append(protos, noProtocol)
 	}
 
-	for _, p := range h.tls.NextProtos {
+	for _, p := range protos {
 		delete(self.handlers, p)
 	}
 

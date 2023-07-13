@@ -55,7 +55,7 @@ func init() {
 		BasicConstraintsValid: true,
 		IsCA:                  true,
 	}
-	caCertBytes, err := x509.CreateCertificate(rand.Reader, &caTemplate, &caTemplate, caKey.Public(), caKey)
+	caCertBytes, _ := x509.CreateCertificate(rand.Reader, &caTemplate, &caTemplate, caKey.Public(), caKey)
 	caCert, _ := x509.ParseCertificate(caCertBytes)
 
 	serverTemplate := x509.Certificate{
@@ -176,12 +176,12 @@ func (t testIdentity) StopWatchingFiles() {
 	panic("implement me")
 }
 
-func (t testIdentity) SetCert(pem string) error {
+func (t testIdentity) SetCert(_ string) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (t testIdentity) SetServerCert(pem string) error {
+func (t testIdentity) SetServerCert(_ string) error {
 	//TODO implement me
 	panic("implement me")
 }
@@ -262,13 +262,16 @@ func TestListen(t *testing.T) {
 
 	el, ok := sharedListeners.Load(testAddress)
 	req.True(ok, "should have shared listener")
+	sl := el.(*sharedListener)
+	req.Equal(1, len(sl.handlers))
 
 	barListener, err := Listen(testAddress, "fooListener", ident, makeGreeter("bar"), "bar", "")
+	req.NoError(err)
 
 	el, ok = sharedListeners.Load(testAddress)
 	req.True(ok, "should have shared listener")
 
-	sl := el.(*sharedListener)
+	sl = el.(*sharedListener)
 	req.Equal(3, len(sl.handlers), "should have a three handled protocols")
 
 	req.Same(sl.handlers[""], sl.handlers["bar"], "should be handled by the same protocolHandler")
