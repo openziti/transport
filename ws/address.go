@@ -65,6 +65,14 @@ func (a address) Type() string {
 	return Type
 }
 
+func (a address) Hostname() string {
+	return a.hostname
+}
+
+func (a address) Port() uint16 {
+	return a.port
+}
+
 type AddressParser struct{}
 
 func (ap AddressParser) Parse(s string) (transport.Address, error) {

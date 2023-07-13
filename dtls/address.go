@@ -71,6 +71,14 @@ func (a *address) withError(err error) (*address, error) {
 	return a, nil
 }
 
+func (a *address) Hostname() string {
+	return a.UDPAddr.IP.String()
+}
+
+func (a address) Port() uint16 {
+	return uint16(a.UDPAddr.Port)
+}
+
 type AddressParser struct{}
 
 func (ap AddressParser) Parse(s string) (transport.Address, error) {
