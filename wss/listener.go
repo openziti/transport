@@ -154,6 +154,7 @@ func startHttpServer(log *logrus.Entry, bindAddress string, cfg *Config, _ strin
 
 	tlsConfig := cfg.Identity.ServerTLSConfig()
 	tlsConfig.ClientAuth = tls.NoClientCert
+	tlsConfig.NextProtos = append(tlsConfig.NextProtos, "h2", "http/1.1")
 
 	httpServer := &http.Server{
 		Addr:         bindAddress,
@@ -164,7 +165,12 @@ func startHttpServer(log *logrus.Entry, bindAddress string, cfg *Config, _ strin
 		TLSConfig:    tlsConfig,
 	}
 
-	if err := httpServer.ListenAndServeTLS("", ""); err != nil {
+	nl, err := transporttls.ListenTLS(bindAddress, "wss", tlsConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	if err = httpServer.Serve(nl); err != nil {
 		panic(err)
 	}
 }

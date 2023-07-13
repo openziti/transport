@@ -48,14 +48,20 @@ func Dial(destination, name string, i *identity.TokenId, timeout time.Duration, 
 	}, nil
 }
 
-func DialWithLocalBinding(destination, name, localBinding string, i *identity.TokenId, timeout time.Duration) (transport.Conn, error) {
+func DialWithLocalBinding(destination, name, localBinding string, i *identity.TokenId, timeout time.Duration, protocols ...string) (transport.Conn, error) {
 	dialer, err := transport.NewDialerWithLocalBinding("tcp", timeout, localBinding)
 
 	if err != nil {
 		return nil, err
 	}
 
-	socket, err := tls.DialWithDialer(dialer, "tcp", destination, i.ClientTLSConfig())
+	tlsCfg := i.ClientTLSConfig()
+	if len(protocols) > 0 {
+		tlsCfg = tlsCfg.Clone()
+		tlsCfg.NextProtos = append(tlsCfg.NextProtos, protocols...)
+	}
+
+	socket, err := tls.DialWithDialer(dialer, "tcp", destination, tlsCfg)
 	if err != nil {
 		return nil, err
 	}

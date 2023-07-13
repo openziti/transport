@@ -10,8 +10,11 @@ import (
 	"fmt"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/http2"
 	"math/big"
 	"net"
+	"net/http"
 	"testing"
 	"time"
 )
@@ -232,6 +235,64 @@ func checkClient(addr string, proto string, expected string, t *testing.T) error
 }
 
 func TestListen(t *testing.T) {
+	req := require.New(t)
+
+	ident := &identity.TokenId{
+		Identity: serverId,
+		Token:    "test",
+		Data:     nil,
+	}
+
+	testAddress := "localhost:14444"
+
+	if listeners, ok := sharedListeners.Load(testAddress); ok {
+		req.Empty(listeners, "should be empty")
+	}
+
+	fooListener, err := Listen(testAddress, "fooListener", ident, makeGreeter("foo"), "foo")
+	req.NoError(err)
+
+	count := 0
+	sharedListeners.Range(func(key, value any) bool {
+		count++
+		return true
+	})
+
+	req.Equal(1, count, "should have single shared listener")
+
+	el, ok := sharedListeners.Load(testAddress)
+	req.True(ok, "should have shared listener")
+
+	barListener, err := Listen(testAddress, "fooListener", ident, makeGreeter("bar"), "bar", "")
+
+	el, ok = sharedListeners.Load(testAddress)
+	req.True(ok, "should have shared listener")
+
+	sl := el.(*sharedListener)
+	req.Equal(3, len(sl.handlers), "should have a three handled protocols")
+
+	req.Same(sl.handlers[""], sl.handlers["bar"], "should be handled by the same protocolHandler")
+
+	req.NoError(checkClient(testAddress, "foo", "foo", t))
+	req.NoError(checkClient(testAddress, "bar", "bar", t))
+	req.Error(checkClient(testAddress, "baz", "baz", t), "this should've failed")
+	req.NoError(checkClient(testAddress, "", "bar", t))
+
+	req.NoError(fooListener.Close())
+
+	req.Error(checkClient(testAddress, "foo", "foo", t), "should fail after handler is closed")
+	req.Equal(2, len(sl.handlers), "2 protocols should be remaining")
+	req.NoError(barListener.Close())
+
+	if _, ok = sharedListeners.Load(testAddress); ok {
+		t.Error("failed to shutdown shared listener")
+	}
+
+	req.Error(checkClient(testAddress, "", "bar", t), "listen socket should be closed")
+}
+
+func TestListenTLS(t *testing.T) {
+	req := require.New(t)
 
 	ident := &identity.TokenId{
 		Identity: serverId,
@@ -245,73 +306,56 @@ func TestListen(t *testing.T) {
 		t.Error("should be empty")
 	}
 
+	config := ident.ServerTLSConfig().Clone()
+	config.NextProtos = []string{"h2", "http/1.1"}
+	config.ClientAuth = tls.RequestClientCert
+
+	httpListener, err := ListenTLS(testAddress, "web", config)
+	req.NoError(err)
+
 	fooListener, err := Listen(testAddress, "fooListener", ident, makeGreeter("foo"), "foo")
+	req.NoError(err)
 
-	count := 0
-	sharedListeners.Range(func(key, value any) bool {
-		count++
-		return true
-	})
-	if count != 1 {
-		t.Error("should have single shared listener")
+	httpServer := &http.Server{
+		Addr:      testAddress,
+		TLSConfig: config,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if len(r.TLS.PeerCertificates) > 0 {
+				w.Header().Add("client-subject", r.TLS.PeerCertificates[0].Subject.CommonName)
+				w.WriteHeader(200)
+			} else {
+				w.WriteHeader(401)
+				_, _ = w.Write([]byte("I don't know you"))
+			}
+		}),
 	}
 
-	el, ok := sharedListeners.Load(testAddress)
-	if !ok {
-		t.Error("should have shared listener")
+	go func() {
+		err := httpServer.Serve(httpListener)
+		if err != nil {
+			fmt.Println("server is done: ", err.Error())
+		}
+	}()
+
+	cltTLS := clientId.ClientTLSConfig().Clone()
+	clt := http.Client{
+		Transport: &http2.Transport{
+			TLSClientConfig: cltTLS,
+		},
+		CheckRedirect: nil,
+		Jar:           nil,
+		Timeout:       0,
 	}
 
-	barListener, err := Listen(testAddress, "fooListener", ident, makeGreeter("bar"), "bar", "")
+	resp, err := clt.Get("https://" + testAddress)
+	req.NoError(err)
+	req.Equal(200, resp.StatusCode)
+	req.Equal(2, resp.ProtoMajor)
+	req.Equal("testClient", resp.Header["Client-Subject"][0])
 
-	el, ok = sharedListeners.Load(testAddress)
-	if !ok {
-		t.Error("should have shared listener")
-	}
+	req.NoError(checkClient(testAddress, "foo", "foo", t), "should find handler")
+	req.Error(checkClient(testAddress, "bar", "bar", t), "should have no handler")
 
-	sl := el.(*sharedListener)
-	if len(sl.acceptors) != 3 {
-		t.Error("should have a three handled protocols")
-	}
-
-	if sl.acceptors[""] != sl.acceptors["bar"] {
-		t.Error("should be handled by the same acceptor")
-	}
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	if err = checkClient(testAddress, "foo", "foo", t); err != nil {
-		t.Error(err)
-	}
-	if err = checkClient(testAddress, "bar", "bar", t); err != nil {
-		t.Error(err)
-	}
-
-	err = checkClient(testAddress, "baz", "baz", t)
-	if err == nil {
-		t.Error("this should've failed")
-	}
-
-	err = checkClient(testAddress, "", "bar", t)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_ = fooListener.Close()
-
-	err = checkClient(testAddress, "foo", "foo", t)
-	if err == nil {
-		t.Error("this should've failed")
-	}
-
-	if len(sl.acceptors) != 2 {
-		t.Errorf("2 protocols should be remaining, found %d acceptors", len(sl.acceptors))
-	}
-
-	_ = barListener.Close()
-
-	if _, ok = sharedListeners.Load(testAddress); ok {
-		t.Error("failed to shutdown shared listener")
-	}
+	req.NoError(httpListener.Close())
+	req.NoError(fooListener.Close())
 }

@@ -37,20 +37,15 @@ type address struct {
 }
 
 func (a address) Dial(name string, i *identity.TokenId, timeout time.Duration, cfg transport.Configuration) (transport.Conn, error) {
-	var protocols []string
-	proto, found := cfg["protocol"]
-	if found {
-		protocols = append(protocols, proto.(string))
-	}
-	return Dial(a.bindableAddress(), name, i, timeout, protocols...)
+	return Dial(a.bindableAddress(), name, i, timeout, cfg.Protocols()...)
 }
 
 func (a address) DialWithLocalBinding(name string, localBinding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
-	return DialWithLocalBinding(a.bindableAddress(), name, localBinding, i, timeout)
+	return DialWithLocalBinding(a.bindableAddress(), name, localBinding, i, timeout, tcfg.Protocols()...)
 }
 
-func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), _ transport.Configuration) (io.Closer, error) {
-	return Listen(a.bindableAddress(), name, i, acceptF)
+func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
+	return Listen(a.bindableAddress(), name, i, acceptF, tcfg.Protocols()...)
 }
 
 func (a address) MustListen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) io.Closer {
