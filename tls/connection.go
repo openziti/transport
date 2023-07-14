@@ -39,5 +39,10 @@ func (self *Connection) Detail() *transport.ConnectionDetail {
 }
 
 func (self *Connection) PeerCertificates() []*x509.Certificate {
+	_ = self.Handshake()
 	return self.ConnectionState().PeerCertificates
+}
+
+func (self *Connection) Protocol() string {
+	return self.ConnectionState().NegotiatedProtocol
 }

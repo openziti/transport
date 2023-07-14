@@ -28,6 +28,26 @@ import (
 
 type Configuration map[interface{}]interface{}
 
+// Protocols returns supported or requested application protocols (used for ALPN support)
+func (self Configuration) Protocols() []string {
+	if self == nil {
+		return nil
+	}
+
+	p, found := self["protocol"]
+	if found {
+		switch v := p.(type) {
+		case string:
+			return []string{v}
+		case []string:
+			return v
+		default:
+			panic("invalid transport.Configuration[protocols] type")
+		}
+	}
+	return nil
+}
+
 // Address implements the functionality provided by a generic "address".
 type Address interface {
 	Dial(name string, i *identity.TokenId, timeout time.Duration, tcfg Configuration) (Conn, error)
