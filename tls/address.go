@@ -17,10 +17,10 @@
 package tls
 
 import (
-	"errors"
 	"fmt"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
+	"github.com/pkg/errors"
 	"io"
 	"strconv"
 	"strings"
@@ -41,7 +41,11 @@ func (a address) Dial(name string, i *identity.TokenId, timeout time.Duration, c
 }
 
 func (a address) DialWithLocalBinding(name string, localBinding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
-	return DialWithLocalBinding(a.bindableAddress(), name, localBinding, i, timeout, tcfg.Protocols()...)
+	proxyConfig, err := tcfg.GetProxyConfiguration()
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to get proxy configuration")
+	}
+	return DialWithLocalBinding(a, name, localBinding, i, timeout, proxyConfig, tcfg.Protocols()...)
 }
 
 func (a address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
