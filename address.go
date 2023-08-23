@@ -21,9 +21,16 @@ import (
 	"github.com/openziti/identity"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/proxy"
 	"io"
 	"net"
 	"time"
+)
+
+const (
+	KeyProxy                    = "proxy"
+	KeyProtocol                 = "protocol"
+	KeyCachedProxyConfiguration = "cachedProxyConfiguration"
 )
 
 type Configuration map[interface{}]interface{}
@@ -34,7 +41,7 @@ func (self Configuration) Protocols() []string {
 		return nil
 	}
 
-	p, found := self["protocol"]
+	p, found := self[KeyProtocol]
 	if found {
 		switch v := p.(type) {
 		case string:
@@ -46,6 +53,106 @@ func (self Configuration) Protocols() []string {
 		}
 	}
 	return nil
+}
+
+func (self Configuration) GetProxyConfiguration() (*ProxyConfiguration, error) {
+	if self == nil {
+		return nil, nil
+	}
+
+	if val, found := self[KeyCachedProxyConfiguration]; found {
+		return val.(*ProxyConfiguration), nil
+	}
+
+	val, found := self[KeyProxy]
+	if !found {
+		return nil, nil
+	}
+
+	cfg, ok := val.(map[interface{}]interface{})
+	if !ok {
+		return nil, errors.New("invalid proxy configuration value, should be map")
+	}
+
+	result, err := LoadProxyConfiguration(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	self[KeyCachedProxyConfiguration] = result
+
+	return result, nil
+}
+
+type ProxyType string
+
+const (
+	ProxyTypeNone        ProxyType = "none"
+	ProxyTypeHttpConnect ProxyType = "http"
+)
+
+type ProxyConfiguration struct {
+	Type    ProxyType
+	Address string
+	Auth    *proxy.Auth
+}
+
+func LoadProxyConfiguration(cfg map[interface{}]interface{}) (*ProxyConfiguration, error) {
+	val, found := cfg["type"]
+	if !found {
+		return nil, errors.New("proxy configuration does not specify proxy type")
+	}
+
+	proxyType, ok := val.(string)
+	if !ok {
+		return nil, errors.New("proxy type must be a string")
+	}
+
+	if proxyType == string(ProxyTypeNone) {
+		return &ProxyConfiguration{
+			Type: ProxyTypeNone,
+		}, nil
+	}
+
+	result := &ProxyConfiguration{}
+
+	switch proxyType {
+	case string(ProxyTypeHttpConnect):
+		result.Type = ProxyTypeHttpConnect
+	default:
+		return nil, errors.Errorf("invalid proxy type %s", proxyType)
+	}
+
+	val, found = cfg["address"]
+	if !found {
+		return nil, errors.Errorf("no address specified for %s proxy", string(result.Type))
+	}
+
+	if addr, ok := val.(string); !ok {
+		return nil, errors.Errorf("invalid value for %s proxy address [%v], must be string", string(result.Type), val)
+	} else {
+		result.Address = addr
+	}
+
+	if val, found = cfg["username"]; found {
+		if username, ok := val.(string); ok {
+			result.Auth = &proxy.Auth{
+				User: username,
+			}
+		} else {
+			return nil, errors.Errorf("invalid value for %s proxy username [%v], must be string", string(result.Type), val)
+		}
+
+		if val, found = cfg["password"]; found {
+			if password, ok := val.(string); ok {
+				result.Auth.Password = password
+			} else {
+				return nil, errors.Errorf("invalid value for %s proxy password [%v], must be string", string(result.Type), val)
+			}
+		}
+	}
+
+	return result, nil
 }
 
 // Address implements the functionality provided by a generic "address".
