@@ -75,7 +75,7 @@ func DialWithLocalBinding(a address, name, localBinding string, i *identity.Toke
 				return nil, err
 			}
 
-			log.Info("sending HTTP CONNECT")
+			log.Debug("sending HTTP CONNECT")
 			proxyDialer := proxies.NewHttpConnectProxyDialer(destination, proxyConf.Auth, timeout)
 			if err = proxyDialer.Connect(conn, destination); err != nil {
 				if closeErr := conn.Close(); closeErr != nil {
