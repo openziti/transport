@@ -31,6 +31,11 @@ import (
 	"time"
 )
 
+const (
+	// same as golang Dial default
+	keepAlive = 15 * time.Second
+)
+
 var noProtocol = ""
 var handlerKey = struct{}{}
 
@@ -193,6 +198,13 @@ type sharedListener struct {
 
 func (self *sharedListener) processConn(conn *tls.Conn) {
 	log := self.log
+
+	if tcpConn, ok := conn.NetConn().(*net.TCPConn); ok {
+		_ = tcpConn.SetNoDelay(true)
+		_ = tcpConn.SetKeepAlive(true)
+		_ = tcpConn.SetKeepAlivePeriod(keepAlive)
+	}
+
 	// sharedListener.getConfig will select the right handler during handshake based on ClientHelloInfo
 	// no need to do another look up here
 	var handler *protocolHandler
