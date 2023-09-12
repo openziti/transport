@@ -362,3 +362,28 @@ func TestListenTLS(t *testing.T) {
 	req.NoError(httpListener.Close())
 	req.NoError(fooListener.Close())
 }
+
+func TestListenSingleProto(t *testing.T) {
+	req := require.New(t)
+
+	ident := &identity.TokenId{
+		Identity: serverId,
+		Token:    "test",
+		Data:     nil,
+	}
+
+	testAddress := "localhost:14444"
+
+	if _, ok := sharedListeners.Load(testAddress); ok {
+		t.Error("should be empty")
+	}
+
+	fooListener, err := Listen(testAddress, "fooListener", ident, makeGreeter("foo"), "foo")
+	req.NoError(err)
+
+	req.NoError(checkClient(testAddress, "foo", "foo", t), "should find handler")
+	req.NoError(checkClient(testAddress, "", "foo", t), "should find handler")
+	req.Error(checkClient(testAddress, "bar", "bar", t), "should have no handler")
+
+	req.NoError(fooListener.Close())
+}
