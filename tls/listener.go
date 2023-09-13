@@ -258,32 +258,46 @@ func (self *sharedListener) getConfig(info *tls.ClientHelloInfo) (*tls.Config, e
 	protos := info.SupportedProtos
 	log.Debug("client requesting protocols = ", protos)
 
-	if protos == nil {
-		protos = append(protos, noProtocol)
-	}
-
 	ctx := info.Context()
-	handler := ctx.Value(handlerKey).(**protocolHandler)
+	handlerOut := ctx.Value(handlerKey).(**protocolHandler)
 
 	self.mtx.RLock()
 	defer self.mtx.RUnlock()
 
-	for _, proto := range protos {
-		acc, found := self.handlers[proto]
-		if found {
-			log.Debugf("found handler for proto[%s]", proto)
-			*handler = acc
-			cfg := acc.tls
-			if cfg.GetConfigForClient != nil {
-				c, _ := cfg.GetConfigForClient(info)
-				if c != nil {
-					cfg = c
-				}
-			}
-			cfg = cfg.Clone()
-			cfg.NextProtos = []string{proto}
-			return cfg, nil
+	var handler *protocolHandler
+	var proto string
+	if protos == nil && len(self.handlers) == 1 {
+		log.Debugf("using single protocol as default")
+		for p, h := range self.handlers {
+			proto, handler = p, h
 		}
+	} else {
+		if protos == nil {
+			protos = append(protos, noProtocol)
+		}
+
+		for _, p := range protos {
+			h, found := self.handlers[p]
+			if found {
+				log.Debugf("found handler for proto[%s]", proto)
+				handler = h
+				proto = p
+			}
+		}
+	}
+
+	if handler != nil {
+		*handlerOut = handler
+		cfg := handler.tls
+		if cfg.GetConfigForClient != nil {
+			c, _ := cfg.GetConfigForClient(info)
+			if c != nil {
+				cfg = c
+			}
+		}
+		cfg = cfg.Clone()
+		cfg.NextProtos = []string{proto}
+		return cfg, nil
 	}
 
 	return nil, fmt.Errorf("not handler for requested protocols %+v", protos)
