@@ -70,17 +70,9 @@ func DialWithLocalBinding(a address, name, localBinding string, i *identity.Toke
 	if proxyConf != nil && proxyConf.Type != transport.ProxyTypeNone {
 		if proxyConf.Type == transport.ProxyTypeHttpConnect {
 			log.Infof("using http connect proxy at %s", proxyConf.Address)
-			conn, err := dialer.Dial("tcp", proxyConf.Address)
+			proxyDialer := proxies.NewHttpConnectProxyDialer(dialer, proxyConf.Address, proxyConf.Auth, timeout)
+			conn, err := proxyDialer.Dial("tcp", destination)
 			if err != nil {
-				return nil, err
-			}
-
-			log.Debug("sending HTTP CONNECT")
-			proxyDialer := proxies.NewHttpConnectProxyDialer(destination, proxyConf.Auth, timeout)
-			if err = proxyDialer.Connect(conn, destination); err != nil {
-				if closeErr := conn.Close(); closeErr != nil {
-					log.WithError(closeErr).Error("unable to close underlying connection after http connect error")
-				}
 				return nil, err
 			}
 

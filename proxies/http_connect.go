@@ -29,8 +29,9 @@ import (
 	"time"
 )
 
-func NewHttpConnectProxyDialer(addr string, auth *proxy.Auth, timeout time.Duration) *HttpConnectProxyDialer {
+func NewHttpConnectProxyDialer(dialer proxy.Dialer, addr string, auth *proxy.Auth, timeout time.Duration) *HttpConnectProxyDialer {
 	return &HttpConnectProxyDialer{
+		dialer:  dialer,
 		address: addr,
 		auth:    auth,
 		timeout: timeout,
@@ -38,13 +39,18 @@ func NewHttpConnectProxyDialer(addr string, auth *proxy.Auth, timeout time.Durat
 }
 
 type HttpConnectProxyDialer struct {
+	dialer  proxy.Dialer
 	address string
 	auth    *proxy.Auth
 	timeout time.Duration
 }
 
 func (self *HttpConnectProxyDialer) Dial(network, addr string) (net.Conn, error) {
-	c, err := net.Dial(network, self.address)
+	dialer := self.dialer
+	if dialer == nil {
+		dialer = &net.Dialer{Timeout: self.timeout}
+	}
+	c, err := dialer.Dial(network, self.address)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to connect to proxy server at %s", self.address)
 	}
