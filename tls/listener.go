@@ -197,7 +197,7 @@ type sharedListener struct {
 }
 
 func (self *sharedListener) processConn(conn *tls.Conn) {
-	log := self.log
+	log := self.log.WithField("remote", conn.RemoteAddr().String())
 
 	if tcpConn, ok := conn.NetConn().(*net.TCPConn); ok {
 		_ = tcpConn.SetNoDelay(true)
