@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/michaelquigley/pfxlog"
+	"github.com/openziti/foundation/v2/concurrenz"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/sirupsen/logrus"
@@ -38,6 +39,12 @@ const (
 
 var noProtocol = ""
 var handlerKey = struct{}{}
+
+var handshakeTimeout concurrenz.AtomicValue[time.Duration]
+
+func SetSharedListenerHandshakeTimeout(timeout time.Duration) {
+	handshakeTimeout.Store(timeout)
+}
 
 func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transport.Conn), protocols ...string) (io.Closer, error) {
 	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress).Entry
@@ -205,10 +212,15 @@ func (self *sharedListener) processConn(conn *tls.Conn) {
 		_ = tcpConn.SetKeepAlivePeriod(keepAlive)
 	}
 
+	timeout := handshakeTimeout.Load()
+	if timeout == 0 {
+		timeout = 5 * time.Second
+	}
+
 	// sharedListener.getConfig will select the right handler during handshake based on ClientHelloInfo
 	// no need to do another look up here
 	var handler *protocolHandler
-	hsCtx, cancelF := context.WithTimeout(context.WithValue(self.ctx, handlerKey, &handler), 5*time.Second)
+	hsCtx, cancelF := context.WithTimeout(context.WithValue(self.ctx, handlerKey, &handler), timeout)
 	defer cancelF()
 
 	err := conn.HandshakeContext(hsCtx)
