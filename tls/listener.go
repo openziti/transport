@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/foundation/v2/concurrenz"
+	"github.com/openziti/foundation/v2/rate"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/sirupsen/logrus"
@@ -44,6 +45,17 @@ var handshakeTimeout concurrenz.AtomicValue[time.Duration]
 
 func SetSharedListenerHandshakeTimeout(timeout time.Duration) {
 	handshakeTimeout.Store(timeout)
+}
+
+var rateLimiterAtomic concurrenz.AtomicValue[*rate.AdaptiveRateLimitTracker]
+
+func SetSharedListenerRateLimiter(limiter rate.AdaptiveRateLimitTracker) {
+	rateLimiterAtomic.Store(&limiter)
+}
+
+func init() {
+	var limiter rate.AdaptiveRateLimitTracker = rate.NoOpAdaptiveRateLimitTracker{}
+	rateLimiterAtomic.Store(&limiter)
 }
 
 func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transport.Conn), protocols ...string) (io.Closer, error) {
@@ -217,13 +229,30 @@ func (self *sharedListener) processConn(conn *tls.Conn) {
 		timeout = 5 * time.Second
 	}
 
+	rateLimiter := *rateLimiterAtomic.Load()
+
 	// sharedListener.getConfig will select the right handler during handshake based on ClientHelloInfo
 	// no need to do another look up here
 	var handler *protocolHandler
 	hsCtx, cancelF := context.WithTimeout(context.WithValue(self.ctx, handlerKey, &handler), timeout)
 	defer cancelF()
 
-	err := conn.HandshakeContext(hsCtx)
+	handshakeF := func(control rate.RateLimitControl) error {
+		err := conn.HandshakeContext(hsCtx)
+		if err != nil {
+			if io.EOF == err {
+				control.Backoff()
+			} else {
+				control.Failed()
+			}
+			return err
+		}
+		control.Success()
+		return nil
+	}
+
+	err := rateLimiter.RunRateLimitedF(fmt.Sprintf("tls handlshake from %s", conn.RemoteAddr().String()), handshakeF)
+
 	if err != nil {
 		log.WithError(err).Error("handshake failed")
 		_ = conn.Close()
