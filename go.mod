@@ -7,8 +7,8 @@ require (
 	github.com/gorilla/websocket v1.5.1
 	github.com/michaelquigley/pfxlog v0.6.10
 	github.com/openziti/dilithium v0.3.3
-	github.com/openziti/foundation/v2 v2.0.43
-	github.com/openziti/identity v1.0.76
+	github.com/openziti/foundation/v2 v2.0.44
+	github.com/openziti/identity v1.0.77
 	github.com/pion/dtls/v2 v2.2.10
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
@@ -27,8 +27,8 @@ require (
 	github.com/pion/logging v0.2.2 // indirect
 	github.com/pion/transport/v2 v2.2.4 // indirect
 	golang.org/x/crypto v0.22.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/term v0.19.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/term v0.20.0 // indirect
 )
 
 require (
