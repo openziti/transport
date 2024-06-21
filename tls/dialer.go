@@ -23,30 +23,11 @@ import (
 	"github.com/openziti/transport/v2"
 	"github.com/openziti/transport/v2/proxies"
 	"github.com/pkg/errors"
-	"net"
 	"time"
 )
 
-func Dial(destination, name string, i *identity.TokenId, timeout time.Duration, protocols ...string) (transport.Conn, error) {
-	log := pfxlog.Logger()
-
-	tlsCfg := i.ClientTLSConfig().Clone()
-	tlsCfg.NextProtos = protocols
-	socket, err := tls.DialWithDialer(&net.Dialer{Timeout: timeout}, "tcp", destination, tlsCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Debugf("server provided [%d] certificates", len(socket.ConnectionState().PeerCertificates))
-
-	return &Connection{
-		detail: &transport.ConnectionDetail{
-			Address: Type + ":" + destination,
-			InBound: false,
-			Name:    name,
-		},
-		Conn: socket,
-	}, nil
+func Dial(a address, name string, i *identity.TokenId, timeout time.Duration, proxyConf *transport.ProxyConfiguration, protocols ...string) (transport.Conn, error) {
+	return DialWithLocalBinding(a, name, "", i, timeout, proxyConf, protocols...)
 }
 
 func DialWithLocalBinding(a address, name, localBinding string, i *identity.TokenId, timeout time.Duration, proxyConf *transport.ProxyConfiguration, protocols ...string) (transport.Conn, error) {

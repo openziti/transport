@@ -206,13 +206,15 @@ func checkClient(addr string, proto string, expected string, t *testing.T) error
 		Data:     nil,
 	}
 
-	var c transport.Conn
-	var err error
-	if proto == "" {
-		c, err = Dial(addr, "test-dialer", clt, time.Second)
+	transport.AddAddressParser(AddressParser{})
+	tlsAddr, err := transport.ParseAddress("tls:" + addr)
+	require.NoError(t, err)
 
+	var c transport.Conn
+	if proto == "" {
+		c, err = Dial(*(tlsAddr.(*address)), "test-dialer", clt, time.Second, nil)
 	} else {
-		c, err = Dial(addr, "test-dialer", clt, time.Second, proto)
+		c, err = Dial(*(tlsAddr.(*address)), "test-dialer", clt, time.Second, nil, proto)
 	}
 	if err != nil {
 		return err

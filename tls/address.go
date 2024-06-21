@@ -36,8 +36,12 @@ type address struct {
 	port     uint16
 }
 
-func (a address) Dial(name string, i *identity.TokenId, timeout time.Duration, cfg transport.Configuration) (transport.Conn, error) {
-	return Dial(a.bindableAddress(), name, i, timeout, cfg.Protocols()...)
+func (a address) Dial(name string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
+	proxyConfig, err := tcfg.GetProxyConfiguration()
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to get proxy configuration")
+	}
+	return Dial(a, name, i, timeout, proxyConfig, tcfg.Protocols()...)
 }
 
 func (a address) DialWithLocalBinding(name string, localBinding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
