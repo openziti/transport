@@ -46,8 +46,8 @@ func (a *address) DialWithLocalBinding(name string, localBinding string, i *iden
 	return DialWithLocalBinding(a, name, localBinding, i, timeout)
 }
 
-func (a *address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), _ transport.Configuration) (io.Closer, error) {
-	return Listen(a, name, i, acceptF)
+func (a *address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
+	return Listen(a, name, i, tcfg, acceptF)
 }
 
 func (a *address) MustListen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) io.Closer {
@@ -62,7 +62,7 @@ func (a *address) String() string {
 	return a.original
 }
 
-func (a address) Type() string {
+func (a *address) Type() string {
 	return Type
 }
 
@@ -75,7 +75,7 @@ func (a *address) Hostname() string {
 	return a.UDPAddr.IP.String()
 }
 
-func (a address) Port() uint16 {
+func (a *address) Port() uint16 {
 	return uint16(a.UDPAddr.Port)
 }
 

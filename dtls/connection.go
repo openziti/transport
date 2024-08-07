@@ -19,13 +19,17 @@ package dtls
 import (
 	"crypto/x509"
 	"github.com/openziti/transport/v2"
-	"github.com/pion/dtls/v2"
+	"github.com/pion/dtls/v3"
 	"github.com/pkg/errors"
 )
 
 func getPeerCerts(conn *dtls.Conn) ([]*x509.Certificate, error) {
 	var certs []*x509.Certificate
-	for _, certBytes := range conn.ConnectionState().PeerCertificates {
+	connState, ok := conn.ConnectionState()
+	if !ok {
+		return nil, errors.New("unable to get dtls connection state, couldn't get peer certificates")
+	}
+	for _, certBytes := range connState.PeerCertificates {
 		cert, err := x509.ParseCertificate(certBytes)
 		if err != nil {
 			return nil, errors.Wrap(err, "couldn't parse peer cert")

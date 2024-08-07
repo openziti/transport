@@ -22,7 +22,8 @@ import (
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
-	"github.com/pion/dtls/v2"
+	"github.com/pion/dtls/v3"
+	"github.com/pkg/errors"
 	"net"
 	"time"
 )
@@ -58,23 +59,34 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 		return nil, err
 	}
 
+	conn, err := dtls.Client(udpConn, &addr.UDPAddr, cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx := context.Background()
 	cancelF := func() {}
 	if timeout > 0 {
 		ctx, cancelF = context.WithTimeout(ctx, timeout)
 	}
-	conn, err := dtls.ClientWithContext(ctx, udpConn, cfg)
+	err = conn.HandshakeContext(ctx)
 	cancelF()
 	if err != nil {
-		return nil, err
+		if err = conn.Close(); err != nil {
+			log.WithError(err).Error("error closing connection")
+		}
+		return nil, errors.Wrap(err, "dtls handshake error")
 	}
-
-	log.Debugf("server provided [%d] certificates", len(conn.ConnectionState().PeerCertificates))
 
 	certs, err := getPeerCerts(conn)
 	if err != nil {
-		return nil, err
+		if err = conn.Close(); err != nil {
+			log.WithError(err).Error("error closing connection")
+		}
+		return nil, errors.Wrap(err, "error getting peer certificates")
 	}
+
+	log.Debugf("server provided [%d] certificates", len(certs))
 
 	return &Connection{
 		detail: &transport.ConnectionDetail{
