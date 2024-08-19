@@ -31,6 +31,9 @@ const (
 	KeyProxy                    = "proxy"
 	KeyProtocol                 = "protocol"
 	KeyCachedProxyConfiguration = "cachedProxyConfiguration"
+
+	KeyHandshakeTimeout       = "handshakeTimeout"
+	KeyCachedHandshakeTimeout = "cachedHandshakeTimeout"
 )
 
 type Configuration map[interface{}]interface{}
@@ -82,6 +85,28 @@ func (self Configuration) GetProxyConfiguration() (*ProxyConfiguration, error) {
 	self[KeyCachedProxyConfiguration] = result
 
 	return result, nil
+}
+
+func (self Configuration) GetHandshakeTimeout() (time.Duration, error) {
+	if val, ok := self[KeyCachedHandshakeTimeout]; ok {
+		if timeout, ok := val.(time.Duration); ok {
+			return timeout, nil
+		}
+	}
+
+	if val, ok := self[KeyHandshakeTimeout]; ok {
+		if strVal, ok := val.(string); ok {
+			timeout, err := time.ParseDuration(strVal)
+			if err == nil {
+				self[KeyCachedHandshakeTimeout] = timeout
+			}
+			return timeout, errors.Wrapf(err, "unable to parse handshake timeout '%s' to duration", strVal)
+		} else {
+			return 0, errors.New("invalid handshake timeout, must be string value")
+		}
+	}
+
+	return 0, nil
 }
 
 type ProxyType string

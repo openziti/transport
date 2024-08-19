@@ -22,7 +22,8 @@ import (
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
-	"github.com/pion/dtls/v2"
+	"github.com/pion/dtls/v3"
+	"github.com/pkg/errors"
 	"net"
 	"time"
 )
@@ -32,15 +33,16 @@ func Dial(addr *address, name string, i *identity.TokenId, timeout time.Duration
 }
 
 func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.TokenId, timeout time.Duration) (transport.Conn, error) {
+	log := pfxlog.Logger()
+	log.WithField("address", addr.String()).Debug("dialing")
+
 	if addr.err != nil {
 		return nil, addr.err
 	}
-	ip, err := transport.ResolveLocalBinding(localBinding)
-	if err != nil {
-		return nil, err
+	ip, closeErr := transport.ResolveLocalBinding(localBinding)
+	if closeErr != nil {
+		return nil, closeErr
 	}
-
-	log := pfxlog.Logger()
 
 	cfg := &dtls.Config{
 		Certificates: []tls.Certificate{*i.Cert()},
@@ -53,9 +55,14 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 		localAddr = &net.UDPAddr{IP: ip}
 	}
 
-	udpConn, err := net.DialUDP("udp", localAddr, &addr.UDPAddr)
-	if err != nil {
-		return nil, err
+	udpConn, closeErr := net.ListenUDP("udp", localAddr)
+	if closeErr != nil {
+		return nil, closeErr
+	}
+
+	conn, closeErr := dtls.Client(udpConn, &addr.UDPAddr, cfg)
+	if closeErr != nil {
+		return nil, closeErr
 	}
 
 	ctx := context.Background()
@@ -63,18 +70,24 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 	if timeout > 0 {
 		ctx, cancelF = context.WithTimeout(ctx, timeout)
 	}
-	conn, err := dtls.ClientWithContext(ctx, udpConn, cfg)
+	closeErr = conn.HandshakeContext(ctx)
 	cancelF()
-	if err != nil {
-		return nil, err
+	if closeErr != nil {
+		if closeErr := conn.Close(); closeErr != nil {
+			log.WithError(closeErr).Error("error closing connection")
+		}
+		return nil, errors.Wrap(closeErr, "dtls handshake error")
 	}
 
-	log.Debugf("server provided [%d] certificates", len(conn.ConnectionState().PeerCertificates))
-
-	certs, err := getPeerCerts(conn)
-	if err != nil {
-		return nil, err
+	certs, closeErr := getPeerCerts(conn)
+	if closeErr != nil {
+		if closeErr = conn.Close(); closeErr != nil {
+			log.WithError(closeErr).Error("error closing connection")
+		}
+		return nil, errors.Wrap(closeErr, "error getting peer certificates")
 	}
+
+	log.Debugf("server provided [%d] certificates", len(certs))
 
 	return &Connection{
 		detail: &transport.ConnectionDetail{

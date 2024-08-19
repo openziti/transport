@@ -22,7 +22,7 @@ import (
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
-	"github.com/pion/dtls/v2"
+	"github.com/pion/dtls/v3"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net"
@@ -30,10 +30,22 @@ import (
 	"time"
 )
 
-func Listen(addr *address, name string, i *identity.TokenId, acceptF func(transport.Conn)) (io.Closer, error) {
+const DefaultHandshakeTimeout = 30 * time.Second
+
+func Listen(addr *address, name string, i *identity.TokenId, tcfg transport.Configuration, acceptF func(transport.Conn)) (io.Closer, error) {
 	if addr.err != nil {
 		return nil, addr.err
 	}
+
+	timeout, err := tcfg.GetHandshakeTimeout()
+	if err != nil {
+		return nil, err
+	}
+
+	if timeout == 0 {
+		timeout = DefaultHandshakeTimeout
+	}
+
 	log := pfxlog.ContextLogger(name + "/" + addr.String()).Entry
 
 	var certs []tls.Certificate
@@ -49,9 +61,6 @@ func Listen(addr *address, name string, i *identity.TokenId, acceptF func(transp
 		RootCAs:    i.CA(),
 		//CipherSuites:         tlz.GetCipherSuites(),
 		// Create timeout context for accepted connection.
-		ConnectContextMaker: func() (context.Context, func()) {
-			return context.WithTimeout(context.Background(), 30*time.Second)
-		},
 	}
 
 	listener, err := dtls.Listen("udp", &addr.UDPAddr, cfg)
@@ -63,6 +72,7 @@ func Listen(addr *address, name string, i *identity.TokenId, acceptF func(transp
 		name:     name,
 		listener: listener,
 		acceptF:  acceptF,
+		timeout:  timeout,
 	}
 
 	go result.acceptLoop(log)
@@ -75,6 +85,7 @@ type acceptor struct {
 	listener net.Listener
 	acceptF  func(transport.Conn)
 	closed   atomic.Bool
+	timeout  time.Duration
 }
 
 func (self *acceptor) Close() error {
@@ -99,6 +110,22 @@ func (self *acceptor) acceptLoop(log *logrus.Entry) {
 		}
 
 		conn := socket.(*dtls.Conn)
+		ctx := context.Background()
+		cancelF := func() {}
+		if self.timeout > 0 {
+			ctx, cancelF = context.WithTimeout(ctx, self.timeout)
+		}
+		err = conn.HandshakeContext(ctx)
+		cancelF()
+
+		if err != nil {
+			log.WithError(err).Error("dtls handshake error")
+			if err = conn.Close(); err != nil {
+				log.WithError(err).Error("error closing connection")
+			}
+			continue
+		}
+
 		certs, err := getPeerCerts(conn)
 		if err != nil {
 			log.WithError(err).Error("unable to parse peer certificates")
@@ -115,7 +142,7 @@ func (self *acceptor) acceptLoop(log *logrus.Entry) {
 				Name:    self.name,
 			},
 			certs: certs,
-			Conn:  socket.(*dtls.Conn),
+			Conn:  conn,
 		}
 		self.acceptF(connection)
 	}
