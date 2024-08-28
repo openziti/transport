@@ -21,6 +21,7 @@ import (
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"strconv"
@@ -45,8 +46,15 @@ func (self address) Dial(name string, id *identity.TokenId, _ time.Duration, tcf
 	var subc map[interface{}]interface{}
 	if tcfg != nil {
 		if v, found := tcfg["westworld3"]; found {
-			if subv, ok := v.(map[interface{}]interface{}); ok {
+			if subv, ok := v.(map[string]interface{}); ok {
+				subc = make(map[interface{}]interface{})
+				for k, v := range subv {
+					subc[k] = v
+				}
+			} else if subv, ok := v.(map[interface{}]interface{}); ok {
 				subc = subv
+			} else {
+				logrus.Warnf("unknown configuration map type '%v'", v)
 			}
 		}
 	}
@@ -61,8 +69,15 @@ func (self address) DialWithLocalBinding(name string, localBinding string, id *i
 	var subc map[interface{}]interface{}
 	if tcfg != nil {
 		if v, found := tcfg["westworld3"]; found {
-			if subv, ok := v.(map[interface{}]interface{}); ok {
+			if subv, ok := v.(map[string]interface{}); ok {
+				subc = make(map[interface{}]interface{})
+				for k, v := range subv {
+					subc[k] = v
+				}
+			} else if subv, ok := v.(map[interface{}]interface{}); ok {
 				subc = subv
+			} else {
+				logrus.Warnf("unknown configuration map type '%v'", v)
 			}
 		}
 	}
@@ -77,8 +92,15 @@ func (self address) Listen(name string, id *identity.TokenId, acceptF func(trans
 	var subc map[interface{}]interface{}
 	if tcfg != nil {
 		if v, found := tcfg["westworld3"]; found {
-			if subv, ok := v.(map[interface{}]interface{}); ok {
+			if subv, ok := v.(map[string]interface{}); ok {
+				subc = make(map[interface{}]interface{})
+				for k, v := range subv {
+					subc[k] = v
+				}
+			} else if subv, ok := v.(map[interface{}]interface{}); ok {
 				subc = subv
+			} else {
+				logrus.Warnf("unknown configuration map type '%v'", v)
 			}
 		}
 	}

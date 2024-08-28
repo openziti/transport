@@ -24,7 +24,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"io"
 	"net"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -44,15 +43,18 @@ func (self address) Dial(name string, _ *identity.TokenId, _ time.Duration, tcfg
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve udp")
 	}
-	subc := make(map[interface{}]interface{})
+	var subc map[interface{}]interface{}
 	if tcfg != nil {
 		if v, found := tcfg["westworld3"]; found {
 			if subv, ok := v.(map[string]interface{}); ok {
+				subc = make(map[interface{}]interface{})
 				for k, v := range subv {
 					subc[k] = v
 				}
+			} else if subv, ok := v.(map[interface{}]interface{}); ok {
+				subc = subv
 			} else {
-				logrus.Warn(reflect.TypeOf(v))
+				logrus.Warnf("unknown configuration map type '%v'", v)
 			}
 		}
 	}
@@ -64,15 +66,18 @@ func (self address) DialWithLocalBinding(name string, localBinding string, _ *id
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve udp")
 	}
-	subc := make(map[interface{}]interface{})
+	var subc map[interface{}]interface{}
 	if tcfg != nil {
 		if v, found := tcfg["westworld3"]; found {
 			if subv, ok := v.(map[string]interface{}); ok {
+				subc = make(map[interface{}]interface{})
 				for k, v := range subv {
 					subc[k] = v
 				}
+			} else if subv, ok := v.(map[interface{}]interface{}); ok {
+				subc = subv
 			} else {
-				logrus.Warn(reflect.TypeOf(v))
+				logrus.Warnf("unknown configuration map type '%v'", v)
 			}
 		}
 	}
@@ -85,15 +90,18 @@ func (self address) Listen(name string, _ *identity.TokenId, acceptF func(transp
 	if err != nil {
 		return nil, errors.Wrap(err, "resolve udp")
 	}
-	subc := make(map[interface{}]interface{})
+	var subc map[interface{}]interface{}
 	if tcfg != nil {
 		if v, found := tcfg["westworld3"]; found {
 			if subv, ok := v.(map[string]interface{}); ok {
+				subc = make(map[interface{}]interface{})
 				for k, v := range subv {
 					subc[k] = v
 				}
+			} else if subv, ok := v.(map[interface{}]interface{}); ok {
+				subc = subv
 			} else {
-				logrus.Warn(reflect.TypeOf(v))
+				logrus.Warnf("unknown configuration map type '%v'", v)
 			}
 		}
 	}
