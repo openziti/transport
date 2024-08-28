@@ -17,8 +17,8 @@
 package transwarp
 
 import (
+	"github.com/michaelquigley/cf"
 	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/dilithium/cf"
 	"github.com/openziti/dilithium/protocol/westworld3"
 	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
