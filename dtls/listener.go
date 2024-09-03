@@ -22,6 +22,7 @@ import (
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
+	"github.com/openziti/transport/v2/shaper"
 	"github.com/pion/dtls/v3"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -68,11 +69,23 @@ func Listen(addr *address, name string, i *identity.TokenId, tcfg transport.Conf
 		return nil, err
 	}
 
+	wf := func(w io.Writer) io.Writer {
+		return w
+	}
+
+	if bps, ok := getMaxBytesPerSecond(tcfg); ok {
+		log.Infof("limiting DTLS writes to %dB/s", bps)
+		wf = func(w io.Writer) io.Writer {
+			return shaper.LimitWriter(w, time.Second, bps)
+		}
+	}
+
 	result := &acceptor{
 		name:     name,
 		listener: listener,
 		acceptF:  acceptF,
 		timeout:  timeout,
+		wf:       wf,
 	}
 
 	go result.acceptLoop(log)
@@ -86,6 +99,7 @@ type acceptor struct {
 	acceptF  func(transport.Conn)
 	closed   atomic.Bool
 	timeout  time.Duration
+	wf       func(io.Writer) io.Writer
 }
 
 func (self *acceptor) Close() error {
@@ -143,6 +157,7 @@ func (self *acceptor) acceptLoop(log *logrus.Entry) {
 			},
 			certs: certs,
 			Conn:  conn,
+			w:     self.wf(conn),
 		}
 		self.acceptF(connection)
 	}

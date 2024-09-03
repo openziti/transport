@@ -17,6 +17,7 @@
 package dtls
 
 import (
+	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
@@ -38,12 +39,12 @@ type address struct {
 	err      error
 }
 
-func (a *address) Dial(name string, i *identity.TokenId, timeout time.Duration, _ transport.Configuration) (transport.Conn, error) {
-	return Dial(a, name, i, timeout)
+func (a *address) Dial(name string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
+	return Dial(a, name, i, timeout, tcfg)
 }
 
 func (a *address) DialWithLocalBinding(name string, localBinding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
-	return DialWithLocalBinding(a, name, localBinding, i, timeout)
+	return DialWithLocalBinding(a, name, localBinding, i, timeout, tcfg)
 }
 
 func (a *address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
@@ -122,4 +123,23 @@ func (ap AddressParser) Parse(s string) (transport.Address, error) {
 		Port: port,
 	}
 	return addr, nil
+}
+
+func getMaxBytesPerSecond(tcfg transport.Configuration) (int64, bool) {
+	log := pfxlog.Logger()
+	log.Info("attempting to retrieve dtls maxBytesPerSecond value")
+	if m, ok := tcfg["dtls"]; ok {
+		log.Info("dtls submap found")
+		if subMap, ok := m.(map[interface{}]interface{}); ok {
+			log.Info("dtls submap correct format")
+			if v, ok := subMap["maxBytesPerSecond"]; ok {
+				log.Info("dtls maxBytesPerSecond found")
+				if bps, ok := v.(int); ok {
+					log.Info("dtls maxBytesPerSecond correct format")
+					return int64(bps), true
+				}
+			}
+		}
+	}
+	return 0, false
 }

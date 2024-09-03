@@ -22,17 +22,19 @@ import (
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
+	"github.com/openziti/transport/v2/shaper"
 	"github.com/pion/dtls/v3"
 	"github.com/pkg/errors"
+	"io"
 	"net"
 	"time"
 )
 
-func Dial(addr *address, name string, i *identity.TokenId, timeout time.Duration) (transport.Conn, error) {
-	return DialWithLocalBinding(addr, name, "", i, timeout)
+func Dial(addr *address, name string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
+	return DialWithLocalBinding(addr, name, "", i, timeout, tcfg)
 }
 
-func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.TokenId, timeout time.Duration) (transport.Conn, error) {
+func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
 	log := pfxlog.Logger()
 	log.WithField("address", addr.String()).Debug("dialing")
 
@@ -58,6 +60,14 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 	udpConn, closeErr := net.ListenUDP("udp", localAddr)
 	if closeErr != nil {
 		return nil, closeErr
+	}
+
+	if err := udpConn.SetWriteBuffer(4 * 1024 * 1024); err != nil {
+		panic(err)
+	}
+
+	if err := udpConn.SetReadBuffer(4 * 1024 * 1024); err != nil {
+		panic(err)
 	}
 
 	conn, closeErr := dtls.Client(udpConn, &addr.UDPAddr, cfg)
@@ -89,6 +99,12 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 
 	log.Debugf("server provided [%d] certificates", len(certs))
 
+	var w io.Writer = conn
+	if bps, ok := getMaxBytesPerSecond(tcfg); ok {
+		log.Infof("limiting DTLS writes to %dB/s", bps)
+		w = shaper.LimitWriter(conn, time.Second, bps)
+	}
+
 	return &Connection{
 		detail: &transport.ConnectionDetail{
 			Address: addr.String(),
@@ -97,5 +113,6 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 		},
 		Conn:  conn,
 		certs: certs,
+		w:     w,
 	}, nil
 }
