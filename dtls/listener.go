@@ -73,7 +73,11 @@ func Listen(addr *address, name string, i *identity.TokenId, tcfg transport.Conf
 		return w
 	}
 
-	if bps, ok := getMaxBytesPerSecond(tcfg); ok {
+	bps, found, err := tcfg.GetInt64Value("dtls", "maxBytesPerSecond")
+	if err != nil {
+		return nil, err
+	}
+	if found {
 		log.Infof("limiting DTLS writes to %dB/s", bps)
 		wf = func(w io.Writer) io.Writer {
 			return shaper.LimitWriter(w, time.Second, bps)

@@ -17,7 +17,6 @@
 package dtls
 
 import (
-	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
@@ -123,23 +122,4 @@ func (ap AddressParser) Parse(s string) (transport.Address, error) {
 		Port: port,
 	}
 	return addr, nil
-}
-
-func getMaxBytesPerSecond(tcfg transport.Configuration) (int64, bool) {
-	log := pfxlog.Logger()
-	log.Info("attempting to retrieve dtls maxBytesPerSecond value")
-	if m, ok := tcfg["dtls"]; ok {
-		log.Info("dtls submap found")
-		if subMap, ok := m.(map[interface{}]interface{}); ok {
-			log.Info("dtls submap correct format")
-			if v, ok := subMap["maxBytesPerSecond"]; ok {
-				log.Info("dtls maxBytesPerSecond found")
-				if bps, ok := v.(int); ok {
-					log.Info("dtls maxBytesPerSecond correct format")
-					return int64(bps), true
-				}
-			}
-		}
-	}
-	return 0, false
 }

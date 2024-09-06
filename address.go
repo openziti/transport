@@ -23,7 +23,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
 	"io"
+	"math"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -107,6 +109,78 @@ func (self Configuration) GetHandshakeTimeout() (time.Duration, error) {
 	}
 
 	return 0, nil
+}
+
+func (self Configuration) GetUIntValue(first string, rest ...string) (uint, bool, error) {
+	val, err := self.GetValue(first, rest...)
+	if val == nil {
+		return 0, false, err
+	}
+
+	intVal, ok := val.(int)
+	if !ok {
+		key := strings.Join(self.toSlice(first, rest...), ":")
+		return 0, false, errors.Errorf("value for key %s should be int, not %v of type '%T'", key, val, val)
+	}
+	if intVal < 0 {
+		key := strings.Join(self.toSlice(first, rest...), ":")
+		return 0, false, errors.Errorf("value for key %s should be positive, not %v ", key, intVal)
+	}
+
+	if intVal > math.MaxInt {
+		key := strings.Join(self.toSlice(first, rest...), ":")
+		return 0, false, errors.Errorf("value for key %s should be less or equal to %d, not %v ", key, math.MaxInt, intVal)
+	}
+
+	return uint(intVal), true, nil
+}
+
+func (self Configuration) GetInt64Value(first string, rest ...string) (int64, bool, error) {
+	val, err := self.GetValue(first, rest...)
+	if val == nil {
+		return 0, false, err
+	}
+
+	intVal, ok := val.(int)
+	if !ok {
+		key := strings.Join(self.toSlice(first, rest...), ":")
+		return 0, false, errors.Errorf("value for key %s should be int, not %v of type '%T'", key, val, val)
+	}
+	return int64(intVal), true, nil
+}
+
+func (self Configuration) toSlice(first string, rest ...string) []string {
+	if len(rest) == 0 {
+		return []string{first}
+	}
+
+	key := make([]string, len(rest)+1)
+	key[0] = first
+	copy(key[1:], rest)
+	return key
+}
+
+func (self Configuration) GetValue(first string, rest ...string) (interface{}, error) {
+	return self.getValue(0, self.toSlice(first, rest...)...)
+}
+
+func (self Configuration) getValue(index int, key ...string) (interface{}, error) {
+	if index == len(key)-1 {
+		return self[key[index]], nil
+	}
+
+	val, ok := self[key[index]]
+	if !ok {
+		return nil, nil
+	}
+
+	subMap, ok := val.(map[interface{}]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid transport configuration value. %s should be map, not %T",
+			strings.Join(key[:index+1], ":"), val)
+	}
+
+	return Configuration(subMap).getValue(index+1, key...)
 }
 
 type ProxyType string

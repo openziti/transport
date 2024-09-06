@@ -19,6 +19,7 @@ package dtls
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
@@ -28,6 +29,10 @@ import (
 	"io"
 	"net"
 	"time"
+)
+
+const (
+	DefaultBufferSize = 4 * 1024 * 1024
 )
 
 func Dial(addr *address, name string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
@@ -62,12 +67,28 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 		return nil, closeErr
 	}
 
-	if err := udpConn.SetWriteBuffer(4 * 1024 * 1024); err != nil {
-		panic(err)
+	writeBufferSize := DefaultBufferSize
+	bufferSize, found, err := tcfg.GetUIntValue("dtls", "writeBufferSize")
+	if err != nil {
+		return nil, err
+	}
+	if found {
+		writeBufferSize = int(bufferSize)
+	}
+	if err := udpConn.SetWriteBuffer(writeBufferSize); err != nil {
+		return nil, fmt.Errorf("unable to set udp write buffer size to %d (%w)", writeBufferSize, err)
 	}
 
-	if err := udpConn.SetReadBuffer(4 * 1024 * 1024); err != nil {
-		panic(err)
+	readBufferSize := DefaultBufferSize
+	bufferSize, found, err = tcfg.GetUIntValue("dtls", "readBufferSize")
+	if err != nil {
+		return nil, err
+	}
+	if found {
+		readBufferSize = int(bufferSize)
+	}
+	if err = udpConn.SetWriteBuffer(readBufferSize); err != nil {
+		return nil, fmt.Errorf("unable to set udp read buffer size to %d (%w)", readBufferSize, err)
 	}
 
 	conn, closeErr := dtls.Client(udpConn, &addr.UDPAddr, cfg)
@@ -100,7 +121,11 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 	log.Debugf("server provided [%d] certificates", len(certs))
 
 	var w io.Writer = conn
-	if bps, ok := getMaxBytesPerSecond(tcfg); ok {
+	bps, found, err := tcfg.GetInt64Value("dtls", "maxBytesPerSecond")
+	if err != nil {
+		return nil, err
+	}
+	if found {
 		log.Infof("limiting DTLS writes to %dB/s", bps)
 		w = shaper.LimitWriter(conn, time.Second, bps)
 	}
