@@ -21,6 +21,7 @@ import (
 	"github.com/openziti/transport/v2"
 	"github.com/pion/dtls/v3"
 	"github.com/pkg/errors"
+	"io"
 )
 
 func getPeerCerts(conn *dtls.Conn) ([]*x509.Certificate, error) {
@@ -43,6 +44,7 @@ type Connection struct {
 	detail *transport.ConnectionDetail
 	*dtls.Conn
 	certs []*x509.Certificate
+	w     io.Writer
 }
 
 func (self *Connection) Detail() *transport.ConnectionDetail {
@@ -51,4 +53,8 @@ func (self *Connection) Detail() *transport.ConnectionDetail {
 
 func (self *Connection) PeerCertificates() []*x509.Certificate {
 	return self.certs
+}
+
+func (self *Connection) Write(p []byte) (int, error) {
+	return self.w.Write(p)
 }

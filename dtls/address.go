@@ -38,12 +38,12 @@ type address struct {
 	err      error
 }
 
-func (a *address) Dial(name string, i *identity.TokenId, timeout time.Duration, _ transport.Configuration) (transport.Conn, error) {
-	return Dial(a, name, i, timeout)
+func (a *address) Dial(name string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
+	return Dial(a, name, i, timeout, tcfg)
 }
 
 func (a *address) DialWithLocalBinding(name string, localBinding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
-	return DialWithLocalBinding(a, name, localBinding, i, timeout)
+	return DialWithLocalBinding(a, name, localBinding, i, timeout, tcfg)
 }
 
 func (a *address) Listen(name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {

@@ -19,20 +19,27 @@ package dtls
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
+	"github.com/openziti/transport/v2/shaper"
 	"github.com/pion/dtls/v3"
 	"github.com/pkg/errors"
+	"io"
 	"net"
 	"time"
 )
 
-func Dial(addr *address, name string, i *identity.TokenId, timeout time.Duration) (transport.Conn, error) {
-	return DialWithLocalBinding(addr, name, "", i, timeout)
+const (
+	DefaultBufferSize = 4 * 1024 * 1024
+)
+
+func Dial(addr *address, name string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
+	return DialWithLocalBinding(addr, name, "", i, timeout, tcfg)
 }
 
-func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.TokenId, timeout time.Duration) (transport.Conn, error) {
+func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
 	log := pfxlog.Logger()
 	log.WithField("address", addr.String()).Debug("dialing")
 
@@ -58,6 +65,30 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 	udpConn, closeErr := net.ListenUDP("udp", localAddr)
 	if closeErr != nil {
 		return nil, closeErr
+	}
+
+	writeBufferSize := DefaultBufferSize
+	bufferSize, found, err := tcfg.GetUIntValue("dtls", "writeBufferSize")
+	if err != nil {
+		return nil, err
+	}
+	if found {
+		writeBufferSize = int(bufferSize)
+	}
+	if err := udpConn.SetWriteBuffer(writeBufferSize); err != nil {
+		return nil, fmt.Errorf("unable to set udp write buffer size to %d (%w)", writeBufferSize, err)
+	}
+
+	readBufferSize := DefaultBufferSize
+	bufferSize, found, err = tcfg.GetUIntValue("dtls", "readBufferSize")
+	if err != nil {
+		return nil, err
+	}
+	if found {
+		readBufferSize = int(bufferSize)
+	}
+	if err = udpConn.SetWriteBuffer(readBufferSize); err != nil {
+		return nil, fmt.Errorf("unable to set udp read buffer size to %d (%w)", readBufferSize, err)
 	}
 
 	conn, closeErr := dtls.Client(udpConn, &addr.UDPAddr, cfg)
@@ -89,6 +120,16 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 
 	log.Debugf("server provided [%d] certificates", len(certs))
 
+	var w io.Writer = conn
+	bps, found, err := tcfg.GetInt64Value("dtls", "maxBytesPerSecond")
+	if err != nil {
+		return nil, err
+	}
+	if found {
+		log.Infof("limiting DTLS writes to %dB/s", bps)
+		w = shaper.LimitWriter(conn, time.Second, bps)
+	}
+
 	return &Connection{
 		detail: &transport.ConnectionDetail{
 			Address: addr.String(),
@@ -97,5 +138,6 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 		},
 		Conn:  conn,
 		certs: certs,
+		w:     w,
 	}, nil
 }
