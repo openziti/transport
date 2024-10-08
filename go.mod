@@ -8,8 +8,8 @@ require (
 	github.com/michaelquigley/pfxlog v0.6.10
 	github.com/openziti-incubator/cf v0.0.3
 	github.com/openziti/dilithium v0.3.5
-	github.com/openziti/foundation/v2 v2.0.48
-	github.com/openziti/identity v1.0.84
+	github.com/openziti/foundation/v2 v2.0.49
+	github.com/openziti/identity v1.0.86
 	github.com/pion/dtls/v3 v3.0.2
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
