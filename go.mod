@@ -14,7 +14,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/net v0.32.0
+	golang.org/x/net v0.33.0
 	nhooyr.io/websocket v1.8.17
 )
 
@@ -26,7 +26,7 @@ require (
 	github.com/miekg/pkcs11 v1.1.1 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/pion/logging v0.2.2 // indirect
-	golang.org/x/crypto v0.30.0 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/term v0.27.0 // indirect
 )
