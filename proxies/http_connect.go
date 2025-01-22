@@ -68,7 +68,7 @@ func (self *HttpConnectProxyDialer) Dial(network, addr string) (net.Conn, error)
 func (self *HttpConnectProxyDialer) Connect(c net.Conn, addr string) error {
 	log := pfxlog.Logger()
 
-	log.Infof("create connect request to %s", addr)
+	log.Debugf("create connect request to %s", addr)
 
 	ctx := context.Background()
 	if self.timeout > 0 {
@@ -90,19 +90,17 @@ func (self *HttpConnectProxyDialer) Connect(c net.Conn, addr string) error {
 	}
 	req.Header.Set("User-Agent", "ziti-transport")
 
-	log.Info("writing request to wire")
 	if err := req.Write(c); err != nil {
 		return errors.Wrapf(err, "unable to send connect request to proxy server at %s", self.address)
 	}
 
-	log.Info("reading response from wire")
 	resp, err := http.ReadResponse(bufio.NewReader(c), req)
 	if err != nil {
 		return errors.Wrapf(err, "unable to read response to connect request to proxy server at %s", self.address)
 	}
 
 	defer func() {
-		log.Info("closing resp body")
+		log.Debug("closing resp body")
 		_ = resp.Body.Close()
 	}()
 
