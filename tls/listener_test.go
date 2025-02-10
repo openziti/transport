@@ -19,10 +19,47 @@ import (
 	"time"
 )
 
+var _ identity.Identity = (*testIdentity)(nil)
+
 type testIdentity struct {
 	serverCert *tls.Certificate
 	clientCert *tls.Certificate
 	capool     *x509.CertPool
+}
+
+func (t testIdentity) GetX509ActiveClientCertChain() []*x509.Certificate {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testIdentity) GetX509ActiveServerCertChains() [][]*x509.Certificate {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testIdentity) GetX509IdentityServerCertChain() []*x509.Certificate {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testIdentity) GetX509IdentityAltCertCertChains() [][]*x509.Certificate {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testIdentity) GetCaPool() *identity.CaPool {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testIdentity) CheckServerCertSansForConflicts() []identity.SanHostConflictError {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (t testIdentity) ValidFor(hostnameOrIp string) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 var serverId testIdentity
