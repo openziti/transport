@@ -2,7 +2,6 @@ module github.com/openziti/transport/v2
 
 go 1.21
 
-
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
@@ -10,7 +9,7 @@ require (
 	github.com/openziti-incubator/cf v0.0.3
 	github.com/openziti/dilithium v0.3.5
 	github.com/openziti/foundation/v2 v2.0.57
-	github.com/openziti/identity v1.0.97
+	github.com/openziti/identity v1.0.98
 	github.com/pion/dtls/v3 v3.0.4
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
