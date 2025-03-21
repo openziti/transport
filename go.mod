@@ -1,6 +1,8 @@
 module github.com/openziti/transport/v2
 
-go 1.21
+go 1.23.0
+
+toolchain go1.23.1
 
 require (
 	github.com/gorilla/mux v1.8.1
@@ -8,7 +10,7 @@ require (
 	github.com/michaelquigley/pfxlog v0.6.10
 	github.com/openziti-incubator/cf v0.0.3
 	github.com/openziti/dilithium v0.3.5
-	github.com/openziti/foundation/v2 v2.0.58
+	github.com/openziti/foundation/v2 v2.0.59
 	github.com/openziti/identity v1.0.100
 	github.com/pion/dtls/v3 v3.0.4
 	github.com/pkg/errors v0.9.1
@@ -27,8 +29,8 @@ require (
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/pion/logging v0.2.3 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/term v0.29.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/term v0.30.0 // indirect
 )
 
 require (
