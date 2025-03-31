@@ -2,7 +2,7 @@ module github.com/openziti/transport/v2
 
 go 1.23.0
 
-toolchain go1.23.1
+toolchain go1.24.1
 
 require (
 	github.com/gorilla/mux v1.8.1
@@ -12,11 +12,11 @@ require (
 	github.com/openziti/dilithium v0.3.5
 	github.com/openziti/foundation/v2 v2.0.59
 	github.com/openziti/identity v1.0.100
-	github.com/pion/dtls/v3 v3.0.5
+	github.com/pion/dtls/v3 v3.0.6
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.38.0
 	nhooyr.io/websocket v1.8.17
 )
 
