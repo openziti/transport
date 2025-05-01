@@ -27,6 +27,14 @@ type testIdentity struct {
 	capool     *x509.CertPool
 }
 
+func (t testIdentity) IsCertSettable() error {
+	return nil
+}
+
+func (t testIdentity) IsServerCertSettable() error {
+	return nil
+}
+
 func (t testIdentity) GetX509ActiveClientCertChain() []*x509.Certificate {
 	//TODO implement me
 	panic("implement me")
