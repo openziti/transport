@@ -72,7 +72,7 @@ func (a *address) withError(err error) (*address, error) {
 }
 
 func (a *address) Hostname() string {
-	return a.UDPAddr.IP.String()
+	return a.IP.String()
 }
 
 func (a *address) Port() uint16 {

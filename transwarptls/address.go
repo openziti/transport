@@ -101,16 +101,16 @@ func (self address) bindableAddress() string {
 	return fmt.Sprintf("%s:%d", self.hostname, self.port)
 }
 
-func (a address) Type() string {
+func (self address) Type() string {
 	return Type
 }
 
-func (a address) Hostname() string {
-	return a.hostname
+func (self address) Hostname() string {
+	return self.hostname
 }
 
-func (a address) Port() uint16 {
-	return a.port
+func (self address) Port() uint16 {
+	return self.port
 }
 
 type AddressParser struct{}
