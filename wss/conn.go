@@ -89,7 +89,9 @@ func (self *connImpl) pinger() {
 		}
 		if time.Since(lastResponse) > self.cfg.PongTimeout {
 			self.log.Errorf("connImpl.pinger PongTimeout exceeded, closing WebSocket")
-			self.ws.Close()
+			if err = self.ws.Close(); err != nil {
+				self.log.WithError(err).Error("error closing conn after connImpl.pinger PongTimeout exceeded")
+			}
 			return
 		}
 	}

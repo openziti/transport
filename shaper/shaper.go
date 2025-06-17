@@ -25,7 +25,7 @@ func (self *Shaper) Write(p []byte) (n int, err error) {
 	inNextInterval := false
 	if self.written >= self.limit {
 		current := time.Now().Truncate(self.span)
-		for current == self.interval {
+		for current.Equal(self.interval) {
 			current = time.Now().Truncate(self.span)
 			// busy wait until we're in the next interval
 		}
