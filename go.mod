@@ -15,7 +15,7 @@ require (
 	github.com/pion/dtls/v3 v3.0.7
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	golang.org/x/net v0.43.0
 	nhooyr.io/websocket v1.8.17
 )
