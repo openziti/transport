@@ -20,22 +20,24 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
+	"net"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/foundation/v2/concurrenz"
 	"github.com/openziti/foundation/v2/rate"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/sirupsen/logrus"
-	"io"
-	"net"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 const (
 	// same as golang Dial default
-	keepAlive = 15 * time.Second
+	keepAlive               = 15 * time.Second
+	handshakeTimeoutDefault = 5 * time.Second
 )
 
 var noProtocol = ""
@@ -47,7 +49,12 @@ var handlerKey = handlerKeyType{}
 var handshakeTimeout concurrenz.AtomicValue[time.Duration]
 
 func SetSharedListenerHandshakeTimeout(timeout time.Duration) {
+
 	handshakeTimeout.Store(timeout)
+}
+
+func GetSharedListenerHandshakeTimeout() time.Duration {
+	return handshakeTimeout.Load()
 }
 
 var rateLimiterAtomic concurrenz.AtomicValue[*rate.AdaptiveRateLimitTracker]
@@ -59,6 +66,8 @@ func SetSharedListenerRateLimiter(limiter rate.AdaptiveRateLimitTracker) {
 func init() {
 	var limiter rate.AdaptiveRateLimitTracker = rate.NoOpAdaptiveRateLimitTracker{}
 	rateLimiterAtomic.Store(&limiter)
+
+	handshakeTimeout.Store(handshakeTimeoutDefault)
 }
 
 func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transport.Conn), protocols ...string) (io.Closer, error) {
