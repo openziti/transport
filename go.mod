@@ -12,11 +12,11 @@ require (
 	github.com/openziti/dilithium v0.3.5
 	github.com/openziti/foundation/v2 v2.0.84
 	github.com/openziti/identity v1.0.122
-	github.com/pion/dtls/v3 v3.0.9
+	github.com/pion/dtls/v3 v3.0.10
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/net v0.48.0
+	golang.org/x/net v0.49.0
 	nhooyr.io/websocket v1.8.17
 )
 
@@ -28,9 +28,9 @@ require (
 	github.com/miekg/pkcs11 v1.1.1 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/pion/logging v0.2.4 // indirect
-	golang.org/x/crypto v0.46.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
-	golang.org/x/term v0.38.0 // indirect
+	golang.org/x/crypto v0.47.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
+	golang.org/x/term v0.39.0 // indirect
 )
 
 require (
@@ -38,9 +38,9 @@ require (
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/parallaxsecond/parsec-client-go v0.0.0-20221025095442-f0a77d263cf9 // indirect
-	github.com/pion/transport/v3 v3.1.1 // indirect
+	github.com/pion/transport/v4 v4.0.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/text v0.33.0 // indirect
 	google.golang.org/protobuf v1.36.5 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
