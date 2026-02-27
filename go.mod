@@ -8,8 +8,6 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/michaelquigley/pfxlog v0.6.10
-	github.com/openziti-incubator/cf v0.0.3
-	github.com/openziti/dilithium v0.3.5
 	github.com/openziti/foundation/v2 v2.0.87
 	github.com/openziti/identity v1.0.125
 	github.com/pion/dtls/v3 v3.0.10
@@ -21,7 +19,6 @@ require (
 )
 
 require (
-	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
@@ -35,7 +32,6 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/parallaxsecond/parsec-client-go v0.0.0-20221025095442-f0a77d263cf9 // indirect
 	github.com/pion/transport/v4 v4.0.1 // indirect
