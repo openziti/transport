@@ -17,12 +17,9 @@
 package udp
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/openziti/identity"
@@ -71,11 +68,11 @@ func (a address) MustListen(name string, i *identity.TokenId, acceptF func(trans
 }
 
 func (a address) String() string {
-	return fmt.Sprintf("%s:%v:%v", Type, a.hostname, a.port)
+	return fmt.Sprintf("%s:%s", Type, transport.HostPortString(a.hostname, a.port))
 }
 
 func (a address) bindableAddress() (*net.UDPAddr, error) {
-	return net.ResolveUDPAddr("udp", fmt.Sprintf("%v:%v", a.hostname, a.port))
+	return net.ResolveUDPAddr("udp", transport.HostPortString(a.hostname, a.port))
 }
 
 func (a address) Type() string {
@@ -93,24 +90,9 @@ func (a address) Port() uint16 {
 type AddressParser struct{}
 
 func (ap AddressParser) Parse(s string) (transport.Address, error) {
-	tokens := strings.Split(s, ":")
-	if len(tokens) < 2 {
-		return nil, errors.New("invalid format")
+	host, port, err := transport.ParseAddressHostPort(s, Type)
+	if err != nil {
+		return nil, err
 	}
-
-	if tokens[0] == Type {
-		if len(tokens) != 3 {
-			return nil, errors.New("invalid format")
-		}
-
-		port, err := strconv.ParseUint(tokens[2], 10, 16)
-		if err != nil {
-			return nil, err
-		}
-
-		return &address{hostname: tokens[1], port: uint16(port)}, nil
-	}
-
-	return nil, errors.New("invalid format")
-
+	return &address{hostname: host, port: port}, nil
 }
