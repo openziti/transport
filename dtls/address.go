@@ -103,7 +103,7 @@ func (ap AddressParser) Parse(s string) (transport.Address, error) {
 	}
 
 	if port < 0 || port > math.MaxUint16 {
-		return addr.withError(errors.Wrapf(err, "invalid port value %v", portStr))
+		return addr.withError("invalid port value %v", portStr)
 	}
 
 	ipAddr := net.ParseIP(host)
