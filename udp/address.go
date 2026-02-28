@@ -19,13 +19,14 @@ package udp
 import (
 	"errors"
 	"fmt"
-	"github.com/openziti/identity"
-	"github.com/openziti/transport/v2"
 	"io"
 	"net"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/openziti/identity"
+	"github.com/openziti/transport/v2"
 )
 
 var _ transport.Address = &address{} // enforce that address implements transport.Address

@@ -17,9 +17,10 @@
 package tcp
 
 import (
-	"github.com/openziti/transport/v2"
 	"net"
 	"time"
+
+	"github.com/openziti/transport/v2"
 )
 
 func Dial(destination, name string, timeout time.Duration) (transport.Conn, error) {

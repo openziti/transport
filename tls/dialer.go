@@ -18,12 +18,13 @@ package tls
 
 import (
 	"crypto/tls"
+	"time"
+
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/openziti/transport/v2/proxies"
 	"github.com/pkg/errors"
-	"time"
 )
 
 func Dial(a address, name string, i *identity.TokenId, timeout time.Duration, proxyConf *transport.ProxyConfiguration, protocols ...string) (transport.Conn, error) {

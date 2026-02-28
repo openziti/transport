@@ -18,13 +18,14 @@ package tls
 
 import (
 	"fmt"
-	"github.com/openziti/identity"
-	"github.com/openziti/transport/v2"
-	"github.com/pkg/errors"
 	"io"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/openziti/identity"
+	"github.com/openziti/transport/v2"
+	"github.com/pkg/errors"
 )
 
 var _ transport.Address = &address{} // enforce that address implements transport.Address

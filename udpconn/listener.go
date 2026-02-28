@@ -1,14 +1,15 @@
 package udpconn
 
 import (
-	"github.com/michaelquigley/pfxlog"
-	"github.com/openziti/foundation/v2/info"
-	"github.com/openziti/foundation/v2/mempool"
-	"github.com/pkg/errors"
 	"io"
 	"net"
 	"sync/atomic"
 	"time"
+
+	"github.com/michaelquigley/pfxlog"
+	"github.com/openziti/foundation/v2/info"
+	"github.com/openziti/foundation/v2/mempool"
+	"github.com/pkg/errors"
 )
 
 func Listen(network string, addr *net.UDPAddr) (net.Listener, error) {

@@ -18,15 +18,16 @@ package transport
 
 import (
 	"fmt"
-	"github.com/openziti/identity"
-	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/proxy"
 	"io"
 	"math"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/openziti/identity"
+	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/proxy"
 )
 
 const (

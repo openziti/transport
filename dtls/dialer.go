@@ -20,15 +20,16 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
+	"net"
+	"time"
+
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/openziti/transport/v2/shaper"
 	"github.com/pion/dtls/v3"
 	"github.com/pkg/errors"
-	"io"
-	"net"
-	"time"
 )
 
 const (
