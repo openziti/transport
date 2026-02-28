@@ -18,8 +18,9 @@ package tcp
 
 import (
 	"crypto/x509"
-	"github.com/openziti/transport/v2"
 	"net"
+
+	"github.com/openziti/transport/v2"
 )
 
 type Connection struct {

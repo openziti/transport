@@ -8,15 +8,16 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
-	"github.com/openziti/identity"
-	"github.com/openziti/transport/v2"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/net/http2"
 	"math/big"
 	"net"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/openziti/identity"
+	"github.com/openziti/transport/v2"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/http2"
 )
 
 var _ identity.Identity = (*testIdentity)(nil)

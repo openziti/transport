@@ -17,11 +17,12 @@
 package tcp
 
 import (
+	"io"
+	"net"
+
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/transport/v2"
 	"github.com/sirupsen/logrus"
-	"io"
-	"net"
 )
 
 func Listen(bindAddress, name string, acceptF func(transport.Conn)) (io.Closer, error) {

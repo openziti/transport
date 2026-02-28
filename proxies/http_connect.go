@@ -19,14 +19,15 @@ package proxies
 import (
 	"bufio"
 	"context"
-	"github.com/michaelquigley/pfxlog"
-	"github.com/pkg/errors"
-	"golang.org/x/net/proxy"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/michaelquigley/pfxlog"
+	"github.com/pkg/errors"
+	"golang.org/x/net/proxy"
 )
 
 func NewHttpConnectProxyDialer(dialer proxy.Dialer, addr string, auth *proxy.Auth, timeout time.Duration) *HttpConnectProxyDialer {

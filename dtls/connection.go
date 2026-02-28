@@ -18,10 +18,11 @@ package dtls
 
 import (
 	"crypto/x509"
+	"io"
+
 	"github.com/openziti/transport/v2"
 	"github.com/pion/dtls/v3"
 	"github.com/pkg/errors"
-	"io"
 )
 
 func getPeerCerts(conn *dtls.Conn) ([]*x509.Certificate, error) {

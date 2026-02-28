@@ -17,9 +17,10 @@
 package udpconn
 
 import (
-	"github.com/openziti/foundation/v2/mempool"
 	"net"
 	"time"
+
+	"github.com/openziti/foundation/v2/mempool"
 )
 
 type WriteQueue interface {
