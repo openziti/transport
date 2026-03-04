@@ -18,9 +18,10 @@ package udp
 
 import (
 	"crypto/x509"
-	"github.com/openziti/transport/v2"
 	"io"
 	"net"
+
+	"github.com/openziti/transport/v2"
 )
 
 type Connection struct {

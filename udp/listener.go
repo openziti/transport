@@ -18,14 +18,15 @@ package udp
 
 import (
 	"bufio"
+	"io"
+	"math"
+	"net"
+
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/openziti/transport/v2/udpconn"
 	"github.com/sirupsen/logrus"
-	"io"
-	"math"
-	"net"
 )
 
 func Listen(bindAddress *net.UDPAddr, name string, i *identity.TokenId, acceptF func(transport.Conn)) (io.Closer, error) {

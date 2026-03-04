@@ -19,16 +19,17 @@ package dtls
 import (
 	"context"
 	"crypto/tls"
+	"io"
+	"net"
+	"sync/atomic"
+	"time"
+
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/openziti/transport/v2/shaper"
 	"github.com/pion/dtls/v3"
 	"github.com/sirupsen/logrus"
-	"io"
-	"net"
-	"sync/atomic"
-	"time"
 )
 
 const DefaultHandshakeTimeout = 30 * time.Second

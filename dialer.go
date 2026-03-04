@@ -18,9 +18,10 @@ package transport
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"net"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 // NewDialerWithLocalBinding creates a dialer and sets the local ip used for dialing
