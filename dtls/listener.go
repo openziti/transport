@@ -56,16 +56,11 @@ func Listen(addr *address, name string, i *identity.TokenId, tcfg transport.Conf
 		certs = append(certs, *ptrCert)
 	}
 
-	cfg := &dtls.Config{
-		Certificates: certs,
-		//ExtendedMasterSecret: dtls.RequireExtendedMasterSecret,
-		ClientAuth: dtls.RequireAnyClientCert,
-		RootCAs:    i.CA(),
-		//CipherSuites:         tlz.GetCipherSuites(),
-		// Create timeout context for accepted connection.
-	}
-
-	listener, err := dtls.Listen("udp", &addr.UDPAddr, cfg)
+	listener, err := dtls.ListenWithOptions("udp", &addr.UDPAddr,
+		dtls.WithCertificates(certs...),
+		dtls.WithClientAuth(dtls.RequireAnyClientCert),
+		dtls.WithRootCAs(i.CA()),
+	)
 	if err != nil {
 		return nil, err
 	}
