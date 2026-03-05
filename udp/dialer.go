@@ -18,11 +18,12 @@ package udp
 
 import (
 	"bufio"
-	"github.com/openziti/identity"
-	"github.com/openziti/transport/v2"
 	"math"
 	"net"
 	"time"
+
+	"github.com/openziti/identity"
+	"github.com/openziti/transport/v2"
 )
 
 func Dial(destination *net.UDPAddr, name string, _ *identity.TokenId, timeout time.Duration) (transport.Conn, error) {

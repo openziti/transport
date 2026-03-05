@@ -18,15 +18,17 @@ package transport
 
 import (
 	"fmt"
+	"io"
+	"math"
+	"net"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/openziti/identity"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
-	"io"
-	"math"
-	"net"
-	"strings"
-	"time"
 )
 
 const (
@@ -301,6 +303,34 @@ func ParseAddress(addressString string) (Address, error) {
 
 // The globally-configured address parsers.
 var addressParsers = make([]AddressParser, 0)
+
+// ParseAddressHostPort parses a transport address string of the form "type:host:port" or "type:[ipv6]:port".
+// It validates the type prefix, then uses net.SplitHostPort to correctly handle both IPv4 and IPv6 addresses.
+func ParseAddressHostPort(s, typeName string) (string, uint16, error) {
+	prefix := typeName + ":"
+	if !strings.HasPrefix(s, prefix) {
+		return "", 0, fmt.Errorf("invalid %s address, doesn't start with %s", typeName, prefix)
+	}
+
+	hostPort := s[len(prefix):]
+	host, portStr, err := net.SplitHostPort(hostPort)
+	if err != nil {
+		return "", 0, fmt.Errorf("invalid %s address '%s': %w", typeName, s, err)
+	}
+
+	port, err := strconv.ParseUint(portStr, 10, 16)
+	if err != nil {
+		return "", 0, fmt.Errorf("invalid %s address '%s': invalid port '%s'", typeName, s, portStr)
+	}
+
+	return host, uint16(port), nil
+}
+
+// HostPortString formats a host and port into a string suitable for use as a network address.
+// IPv6 addresses are automatically wrapped in brackets by net.JoinHostPort.
+func HostPortString(host string, port uint16) string {
+	return net.JoinHostPort(host, strconv.FormatUint(uint64(port), 10))
+}
 
 // Resolve a network interface by name or IP address
 func ResolveInterface(toResolve string) (*net.Interface, error) {

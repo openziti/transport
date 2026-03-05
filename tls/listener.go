@@ -263,7 +263,7 @@ func (self *sharedListener) processConn(conn *tls.Conn) {
 		return nil
 	}
 
-	err := rateLimiter.RunRateLimitedF(fmt.Sprintf("tls handlshake from %s", conn.RemoteAddr().String()), handshakeF)
+	err := rateLimiter.RunRateLimitedF(fmt.Sprintf("tls handshake from %s", conn.RemoteAddr().String()), handshakeF)
 
 	if err != nil {
 		log.WithError(err).Error("handshake failed")

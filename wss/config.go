@@ -2,10 +2,11 @@ package wss
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/pkg/errors"
-	"time"
 )
 
 type Config struct {
