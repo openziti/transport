@@ -18,7 +18,6 @@ package dtls
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -47,15 +46,9 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 	if addr.err != nil {
 		return nil, addr.err
 	}
-	ip, closeErr := transport.ResolveLocalBinding(localBinding)
-	if closeErr != nil {
-		return nil, closeErr
-	}
-
-	cfg := &dtls.Config{
-		Certificates: []tls.Certificate{*i.Cert()},
-		//ExtendedMasterSecret: dtls.RequireExtendedMasterSecret,
-		RootCAs: i.CA(),
+	ip, err := transport.ResolveLocalBinding(localBinding)
+	if err != nil {
+		return nil, err
 	}
 
 	var localAddr *net.UDPAddr
@@ -63,10 +56,19 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 		localAddr = &net.UDPAddr{IP: ip}
 	}
 
-	udpConn, closeErr := net.ListenUDP("udp", localAddr)
-	if closeErr != nil {
-		return nil, closeErr
+	udpConn, err := net.ListenUDP("udp", localAddr)
+	if err != nil {
+		return nil, err
 	}
+
+	closeUdpConn := true
+	defer func() {
+		if closeUdpConn {
+			if closeErr := udpConn.Close(); closeErr != nil {
+				log.WithError(closeErr).Error("error closing udp connection")
+			}
+		}
+	}()
 
 	writeBufferSize := DefaultBufferSize
 	bufferSize, found, err := tcfg.GetUIntValue("dtls", "writeBufferSize")
@@ -76,7 +78,8 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 	if found {
 		writeBufferSize = int(bufferSize)
 	}
-	if err := udpConn.SetWriteBuffer(writeBufferSize); err != nil {
+
+	if err = udpConn.SetWriteBuffer(writeBufferSize); err != nil {
 		return nil, fmt.Errorf("unable to set udp write buffer size to %d (%w)", writeBufferSize, err)
 	}
 
@@ -88,35 +91,43 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 	if found {
 		readBufferSize = int(bufferSize)
 	}
-	if err = udpConn.SetWriteBuffer(readBufferSize); err != nil {
+	if err = udpConn.SetReadBuffer(readBufferSize); err != nil {
 		return nil, fmt.Errorf("unable to set udp read buffer size to %d (%w)", readBufferSize, err)
 	}
 
-	conn, closeErr := dtls.Client(udpConn, &addr.UDPAddr, cfg)
-	if closeErr != nil {
-		return nil, closeErr
+	conn, err := dtls.ClientWithOptions(udpConn, &addr.UDPAddr,
+		dtls.WithCertificates(*i.Cert()),
+		dtls.WithRootCAs(i.CA()),
+	)
+	if err != nil {
+		return nil, err
 	}
+
+	// from here on, closing conn will also close udpConn
+	closeUdpConn = false
+	closeConn := true
+	defer func() {
+		if closeConn {
+			if closeErr := conn.Close(); closeErr != nil {
+				log.WithError(closeErr).Error("error closing dtls connection")
+			}
+		}
+	}()
 
 	ctx := context.Background()
 	cancelF := func() {}
 	if timeout > 0 {
 		ctx, cancelF = context.WithTimeout(ctx, timeout)
 	}
-	closeErr = conn.HandshakeContext(ctx)
+	err = conn.HandshakeContext(ctx)
 	cancelF()
-	if closeErr != nil {
-		if closeErr := conn.Close(); closeErr != nil {
-			log.WithError(closeErr).Error("error closing connection")
-		}
-		return nil, errors.Wrap(closeErr, "dtls handshake error")
+	if err != nil {
+		return nil, fmt.Errorf("dtls handshake error: %w", err)
 	}
 
-	certs, closeErr := getPeerCerts(conn)
-	if closeErr != nil {
-		if closeErr = conn.Close(); closeErr != nil {
-			log.WithError(closeErr).Error("error closing connection")
-		}
-		return nil, errors.Wrap(closeErr, "error getting peer certificates")
+	certs, err := getPeerCerts(conn)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting peer certificates")
 	}
 
 	log.Debugf("server provided [%d] certificates", len(certs))
@@ -131,6 +142,7 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 		w = shaper.LimitWriter(conn, time.Second, bps)
 	}
 
+	closeConn = false
 	return &Connection{
 		detail: &transport.ConnectionDetail{
 			Address: addr.String(),

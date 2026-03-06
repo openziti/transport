@@ -10,7 +10,7 @@ require (
 	github.com/michaelquigley/pfxlog v0.6.10
 	github.com/openziti/foundation/v2 v2.0.88
 	github.com/openziti/identity v1.0.126
-	github.com/pion/dtls/v3 v3.0.10
+	github.com/pion/dtls/v3 v3.1.2
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.4
 	github.com/stretchr/testify v1.11.1
