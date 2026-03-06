@@ -143,10 +143,6 @@ func (conn *udpConn) Write(b []byte) (int, error) {
 func (conn *udpConn) Close() error {
 	if conn.closed.CompareAndSwap(false, true) {
 		close(conn.closeNotify)
-		if err := conn.writeConn.Close(); err != nil {
-			logrus.WithField("src_addr", conn.srcAddr).
-				WithError(err).Error("error while closing udp connection")
-		}
 	}
 
 	return nil

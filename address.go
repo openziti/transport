@@ -373,7 +373,7 @@ func ResolveInterface(toResolve string) (*net.Interface, error) {
 				continue
 			}
 
-			if ip.To4() != nil && ip.To4().String() == toResolve {
+			if ip.String() == toResolve {
 				log.Debugf("Resolved %s to interface %s", toResolve, iface.Name)
 				return &iface, nil
 			}

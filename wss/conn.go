@@ -45,7 +45,7 @@ func (self *connImpl) Read(b []byte) (int, error) {
 		return 0, err
 	}
 
-	n := copy(buf, self.leftover)
+	n := copy(b, buf)
 	self.leftover = buf[n:]
 	return n, nil
 }
@@ -106,7 +106,10 @@ func (self *connImpl) RemoteAddr() net.Addr {
 }
 
 func (self *connImpl) SetDeadline(t time.Time) error {
-	return self.ws.SetReadDeadline(t)
+	if err := self.ws.SetReadDeadline(t); err != nil {
+		return err
+	}
+	return self.ws.SetWriteDeadline(t)
 }
 
 func (self *connImpl) SetReadDeadline(t time.Time) error {

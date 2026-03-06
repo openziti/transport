@@ -158,8 +158,7 @@ func (self *udpListener) dropExpired() {
 	for key, conn := range self.connMap {
 		if conn.closed.Load() {
 			delete(self.connMap, conn.srcAddr.String())
-		}
-		if self.expirationPolicy.IsExpired(now, conn.GetLastUsed()) {
+		} else if self.expirationPolicy.IsExpired(now, conn.GetLastUsed()) {
 			log.WithField("udpConnId", key).Debug("connection expired. removing from UDP vconn manager")
 			self.close(conn)
 		}
