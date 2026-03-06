@@ -170,7 +170,8 @@ var sharedListeners sync.Map
 
 func registerWithSharedListener(bindAddress string, acc *protocolHandler) error {
 	sl := &sharedListener{
-		address: bindAddress,
+		address:  bindAddress,
+		handlers: make(map[string]*protocolHandler),
 	}
 	el, found := sharedListeners.LoadOrStore(bindAddress, sl)
 	sl = el.(*sharedListener)
@@ -183,7 +184,6 @@ func registerWithSharedListener(bindAddress string, acc *protocolHandler) error 
 		}
 
 		sl.ctx, sl.done = context.WithCancel(context.Background())
-		sl.handlers = make(map[string]*protocolHandler)
 		sock, err := tls.Listen("tcp", bindAddress, sl.tlsCfg)
 		if err != nil {
 			sharedListeners.Delete(bindAddress)
@@ -332,7 +332,7 @@ func (self *sharedListener) getConfig(info *tls.ClientHelloInfo) (*tls.Config, e
 		for _, p := range protos {
 			h, found := self.handlers[p]
 			if found {
-				log.Debugf("found handler for proto[%s]", proto)
+				log.Debugf("found handler for proto[%s]", p)
 				handler = h
 				proto = p
 			}
@@ -364,12 +364,12 @@ func (self *sharedListener) remove(h *protocolHandler) {
 		protos = append(protos, noProtocol)
 	}
 
+	self.mtx.Lock()
+	defer self.mtx.Unlock()
+
 	for _, p := range protos {
 		delete(self.handlers, p)
 	}
-
-	self.mtx.Lock()
-	defer self.mtx.Unlock()
 
 	if len(self.handlers) == 0 {
 		self.log.Debug("no handlers left. stopping")

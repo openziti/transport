@@ -18,6 +18,8 @@ package wss
 
 import (
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -29,13 +31,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/transport/v2"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
 var (
-	upgrader = websocket.Upgrader{}
-
 	browZerRuntimeSdkSuites = []uint16{
 		//vv WASM-based TLS1.3 suites
 		tls.TLS_AES_256_GCM_SHA384,
@@ -46,10 +45,11 @@ var (
 )
 
 type wssListener struct {
-	log     *logrus.Entry
-	acceptF func(transport.Conn)
-	cfg     *Config
-	ctr     int64
+	log      *logrus.Entry
+	acceptF  func(transport.Conn)
+	cfg      *Config
+	ctr      int64
+	upgrader websocket.Upgrader
 }
 
 /**
@@ -59,7 +59,7 @@ func (listener *wssListener) handleWebsocket(w http.ResponseWriter, r *http.Requ
 	log := listener.log
 	log.Info("entered")
 
-	c, err := upgrader.Upgrade(w, r, nil) // upgrade from HTTP to binary socket
+	c, err := listener.upgrader.Upgrade(w, r, nil) // upgrade from HTTP to binary socket
 
 	if err != nil {
 		log.WithError(err).Error("websocket upgrade failed. Failure not recoverable.")
@@ -93,7 +93,7 @@ func (listener *wssListener) handleWebsocket(w http.ResponseWriter, r *http.Requ
 		}
 
 		detail := &transport.ConnectionDetail{
-			Address: Type + ":" + c.UnderlyingConn().RemoteAddr().String(),
+			Address: Type + ":" + c.NetConn().RemoteAddr().String(),
 			InBound: true,
 			Name:    Type,
 		}
@@ -117,39 +117,30 @@ func Listen(bindAddress string, name string, i *identity.TokenId, acceptF func(t
 
 	if tcfg != nil {
 		if err := cfg.Load(tcfg); err != nil {
-			return nil, errors.Wrap(err, "load configuration")
+			return nil, fmt.Errorf("error loading configuration: %w", err)
 		}
 	}
 	logrus.Info(cfg.Dump("ws.Config"))
 
-	go startHttpServer(log.Entry, bindAddress, cfg, name, acceptF)
-
-	return nil, nil
-}
-
-/**
- *	The TCP-based listener that accepts acceptF HTTP connections that we will upgrade to Websocket connections.
- */
-func startHttpServer(log *logrus.Entry, bindAddress string, cfg *Config, _ string, acceptF func(transport.Conn)) {
-
 	log.Infof("starting HTTP (websocket) server at bindAddress [%s]", bindAddress)
 
 	listener := &wssListener{
-		log:     log,
+		log:     log.Entry,
 		acceptF: acceptF,
 		cfg:     cfg,
 		ctr:     0,
 	}
 
-	// Set up the HTTP -> Websocket upgrader options (once, before we start listening)
-	upgrader.HandshakeTimeout = cfg.HandshakeTimeout
-	upgrader.ReadBufferSize = cfg.ReadBufferSize
-	upgrader.WriteBufferSize = cfg.WriteBufferSize
-	upgrader.EnableCompression = cfg.EnableCompression
-	upgrader.CheckOrigin = func(r *http.Request) bool { return true } // Allow all origins
+	// Set up the HTTP -> Websocket upgrader options with a local upgrader to avoid races
+	listener.upgrader = websocket.Upgrader{
+		HandshakeTimeout:  cfg.HandshakeTimeout,
+		ReadBufferSize:    cfg.ReadBufferSize,
+		WriteBufferSize:   cfg.WriteBufferSize,
+		EnableCompression: cfg.EnableCompression,
+		CheckOrigin:       func(r *http.Request) bool { return true },
+	}
 
 	router := mux.NewRouter()
-
 	router.HandleFunc("/ws", listener.handleWebsocket).Methods("GET")
 
 	tlsConfig := cfg.Identity.ServerTLSConfig()
@@ -167,10 +158,14 @@ func startHttpServer(log *logrus.Entry, bindAddress string, cfg *Config, _ strin
 
 	nl, err := transporttls.ListenTLS(bindAddress, "wss", tlsConfig)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("listen TLS error: %w", err)
 	}
 
-	if err = httpServer.Serve(nl); err != nil {
-		panic(err)
-	}
+	go func() {
+		if err := httpServer.Serve(nl); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Entry.WithError(err).Error("HTTP server failed")
+		}
+	}()
+
+	return httpServer, nil
 }

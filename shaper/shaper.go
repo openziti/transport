@@ -2,6 +2,7 @@ package shaper
 
 import (
 	"io"
+	"runtime"
 	"time"
 )
 
@@ -26,8 +27,13 @@ func (self *Shaper) Write(p []byte) (n int, err error) {
 	if self.written >= self.limit {
 		current := time.Now().Truncate(self.span)
 		for current.Equal(self.interval) {
+			remaining := time.Until(self.interval.Add(self.span))
+			if remaining > time.Millisecond {
+				time.Sleep(remaining)
+			} else {
+				runtime.Gosched()
+			}
 			current = time.Now().Truncate(self.span)
-			// busy wait until we're in the next interval
 		}
 		self.interval = current
 		inNextInterval = true

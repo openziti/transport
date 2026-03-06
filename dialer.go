@@ -71,7 +71,14 @@ func ResolveLocalBinding(localBinding string) (net.IP, error) {
 			return nil, errors.New(fmt.Sprintf("no ip addresses assigned to interface %s", localBinding))
 		}
 
-		return addrs[0].(*net.IPNet).IP, nil
+		switch addr := addrs[0].(type) {
+		case *net.IPNet:
+			return addr.IP, nil
+		case *net.IPAddr:
+			return addr.IP, nil
+		default:
+			return nil, fmt.Errorf("unexpected address type %T on interface %s", addrs[0], localBinding)
+		}
 	}
 
 	return nil, nil
