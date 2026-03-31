@@ -47,6 +47,100 @@ func TestParseAddressHostPort(t *testing.T) {
 	}
 }
 
+func TestLoadProxyConfiguration(t *testing.T) {
+	tests := []struct {
+		name       string
+		cfg        map[interface{}]interface{}
+		wantType   ProxyType
+		wantAddr   string
+		wantSkip   bool
+		wantErr    bool
+	}{
+		{
+			name:     "http type",
+			cfg:      map[interface{}]interface{}{"type": "http", "address": "proxy:8080"},
+			wantType: ProxyTypeHttpConnect,
+			wantAddr: "proxy:8080",
+		},
+		{
+			name:     "https type",
+			cfg:      map[interface{}]interface{}{"type": "https", "address": "proxy:443"},
+			wantType: ProxyTypeHttpsConnect,
+			wantAddr: "proxy:443",
+		},
+		{
+			name:     "https with skipVerify true",
+			cfg:      map[interface{}]interface{}{"type": "https", "address": "proxy:443", "skipVerify": true},
+			wantType: ProxyTypeHttpsConnect,
+			wantAddr: "proxy:443",
+			wantSkip: true,
+		},
+		{
+			name:     "https skipVerify defaults false",
+			cfg:      map[interface{}]interface{}{"type": "https", "address": "proxy:443"},
+			wantType: ProxyTypeHttpsConnect,
+			wantAddr: "proxy:443",
+			wantSkip: false,
+		},
+		{
+			name:    "skipVerify invalid type",
+			cfg:     map[interface{}]interface{}{"type": "https", "address": "proxy:443", "skipVerify": "yes"},
+			wantErr: true,
+		},
+		{
+			name:    "https missing address",
+			cfg:     map[interface{}]interface{}{"type": "https"},
+			wantErr: true,
+		},
+		{
+			name:     "none type",
+			cfg:      map[interface{}]interface{}{"type": "none"},
+			wantType: ProxyTypeNone,
+		},
+		{
+			name:    "unknown type",
+			cfg:     map[interface{}]interface{}{"type": "socks5"},
+			wantErr: true,
+		},
+		{
+			name:    "missing type",
+			cfg:     map[interface{}]interface{}{"address": "proxy:8080"},
+			wantErr: true,
+		},
+		{
+			name:     "http with auth",
+			cfg:      map[interface{}]interface{}{"type": "http", "address": "proxy:8080", "username": "user", "password": "pass"},
+			wantType: ProxyTypeHttpConnect,
+			wantAddr: "proxy:8080",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := LoadProxyConfiguration(tt.cfg)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			if result.Type != tt.wantType {
+				t.Errorf("type = %s, want %s", result.Type, tt.wantType)
+			}
+			if result.Address != tt.wantAddr {
+				t.Errorf("address = %s, want %s", result.Address, tt.wantAddr)
+			}
+			if result.SkipVerify != tt.wantSkip {
+				t.Errorf("skipVerify = %v, want %v", result.SkipVerify, tt.wantSkip)
+			}
+		})
+	}
+}
+
 func TestHostPortString(t *testing.T) {
 	tests := []struct {
 		name string
