@@ -6,9 +6,9 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/michaelquigley/pfxlog v0.6.10
-	github.com/openziti/foundation/v2 v2.0.93
-	github.com/openziti/identity v1.0.131
-	github.com/pion/dtls/v3 v3.1.3
+	github.com/openziti/foundation/v2 v2.0.94
+	github.com/openziti/identity v1.0.132
+	github.com/pion/dtls/v3 v3.1.4
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.4
 	github.com/stretchr/testify v1.11.1
