@@ -50,18 +50,22 @@ func DialWithLocalBinding(a address, name, localBinding string, i *identity.Toke
 	var tlsConn *tls.Conn
 
 	if proxyConf != nil && proxyConf.Type != transport.ProxyTypeNone {
-		if proxyConf.Type == transport.ProxyTypeHttpConnect {
+		var proxyDialer *proxies.HttpConnectProxyDialer
+		switch proxyConf.Type {
+		case transport.ProxyTypeHttpConnect:
 			log.Infof("using http connect proxy at %s", proxyConf.Address)
-			proxyDialer := proxies.NewHttpConnectProxyDialer(dialer, proxyConf.Address, proxyConf.Auth, timeout)
-			conn, err := proxyDialer.Dial("tcp", destination)
-			if err != nil {
-				return nil, err
-			}
-
-			tlsConn = tls.Client(conn, tlsCfg)
-		} else {
+			proxyDialer = proxies.NewHttpConnectProxyDialer(dialer, proxyConf.Address, proxyConf.Auth, timeout)
+		case transport.ProxyTypeHttpsConnect:
+			log.Infof("using https connect proxy at %s", proxyConf.Address)
+			proxyDialer = proxies.NewHttpsConnectProxyDialer(dialer, proxyConf.Address, proxyConf.Auth, timeout, proxyConf.SkipVerify)
+		default:
 			return nil, errors.Errorf("unsupported proxy type %s", string(proxyConf.Type))
 		}
+		conn, err := proxyDialer.Dial("tcp", destination)
+		if err != nil {
+			return nil, err
+		}
+		tlsConn = tls.Client(conn, tlsCfg)
 	} else {
 		tlsConn, err = tls.DialWithDialer(dialer, "tcp", destination, tlsCfg)
 		if err != nil {

@@ -19,6 +19,7 @@ package proxies
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
@@ -39,11 +40,24 @@ func NewHttpConnectProxyDialer(dialer proxy.Dialer, addr string, auth *proxy.Aut
 	}
 }
 
+func NewHttpsConnectProxyDialer(dialer proxy.Dialer, addr string, auth *proxy.Auth, timeout time.Duration, skipVerify bool) *HttpConnectProxyDialer {
+	return &HttpConnectProxyDialer{
+		dialer:     dialer,
+		address:    addr,
+		auth:       auth,
+		timeout:    timeout,
+		useTLS:     true,
+		skipVerify: skipVerify,
+	}
+}
+
 type HttpConnectProxyDialer struct {
-	dialer  proxy.Dialer
-	address string
-	auth    *proxy.Auth
-	timeout time.Duration
+	dialer     proxy.Dialer
+	address    string
+	auth       *proxy.Auth
+	timeout    time.Duration
+	useTLS     bool
+	skipVerify bool
 }
 
 func (self *HttpConnectProxyDialer) Dial(network, addr string) (net.Conn, error) {
@@ -54,6 +68,22 @@ func (self *HttpConnectProxyDialer) Dial(network, addr string) (net.Conn, error)
 	c, err := dialer.Dial(network, self.address)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to connect to proxy server at %s", self.address)
+	}
+
+	if self.useTLS {
+		host, _, splitErr := net.SplitHostPort(self.address)
+		if splitErr != nil {
+			host = self.address
+		}
+		tlsConn := tls.Client(c, &tls.Config{
+			ServerName:         host,
+			InsecureSkipVerify: self.skipVerify,
+		})
+		if err = tlsConn.Handshake(); err != nil {
+			_ = c.Close()
+			return nil, errors.Wrapf(err, "TLS handshake with proxy server at %s failed", self.address)
+		}
+		c = tlsConn
 	}
 
 	if err = self.Connect(c, addr); err != nil {

@@ -188,14 +188,16 @@ func (self Configuration) getValue(index int, key ...string) (interface{}, error
 type ProxyType string
 
 const (
-	ProxyTypeNone        ProxyType = "none"
-	ProxyTypeHttpConnect ProxyType = "http"
+	ProxyTypeNone         ProxyType = "none"
+	ProxyTypeHttpConnect  ProxyType = "http"
+	ProxyTypeHttpsConnect ProxyType = "https"
 )
 
 type ProxyConfiguration struct {
-	Type    ProxyType
-	Address string
-	Auth    *proxy.Auth
+	Type       ProxyType
+	Address    string
+	Auth       *proxy.Auth
+	SkipVerify bool
 }
 
 func LoadProxyConfiguration(cfg map[interface{}]interface{}) (*ProxyConfiguration, error) {
@@ -220,6 +222,8 @@ func LoadProxyConfiguration(cfg map[interface{}]interface{}) (*ProxyConfiguratio
 	switch proxyType {
 	case string(ProxyTypeHttpConnect):
 		result.Type = ProxyTypeHttpConnect
+	case string(ProxyTypeHttpsConnect):
+		result.Type = ProxyTypeHttpsConnect
 	default:
 		return nil, errors.Errorf("invalid proxy type %s", proxyType)
 	}
@@ -250,6 +254,14 @@ func LoadProxyConfiguration(cfg map[interface{}]interface{}) (*ProxyConfiguratio
 			} else {
 				return nil, errors.Errorf("invalid value for %s proxy password [%v], must be string", string(result.Type), val)
 			}
+		}
+	}
+
+	if val, found = cfg["skipVerify"]; found {
+		if skipVerify, ok := val.(bool); ok {
+			result.SkipVerify = skipVerify
+		} else {
+			return nil, errors.Errorf("invalid value for %s proxy skipVerify [%v], must be bool", string(result.Type), val)
 		}
 	}
 
