@@ -33,16 +33,20 @@ import (
 )
 
 func Dial(name string, u url.URL, i *identity.TokenId, to time.Duration, _ transport.Configuration) (transport.Conn, error) {
-	ctx, _ := context.WithTimeout(context.Background(), time.Minute) //cancel //time.Minute)
+	// Use a short timeout only for the initial dial handshake, then switch
+	// to an unbounded context for the connection lifetime so idle
+	// sessions are not killed after 60 seconds.
+	dialCtx, dialCancel := context.WithTimeout(context.Background(), time.Minute)
+	defer dialCancel()
 
-	log.Debugf("Dialing websocket: %", u.String())
-	c, httpResp, err := websocket.Dial(ctx, u.String(), nil)
+	log.Debugf("Dialing websocket: %s", u.String())
+	c, httpResp, err := websocket.Dial(dialCtx, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
 	log.Debugf("httpResp %v", httpResp)
 
-	conn := websocket.NetConn(ctx, c, websocket.MessageBinary)
+	conn := websocket.NetConn(context.Background(), c, websocket.MessageBinary)
 	tlsConn := tls.Client(conn, ClientTLSConfig(u, i))
 
 	detail := &transport.ConnectionDetail{
