@@ -20,31 +20,32 @@ import (
 	"io"
 	"net"
 
-	"github.com/michaelquigley/pfxlog"
+	"log/slog"
+
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/openziti/transport/v2"
-	"github.com/sirupsen/logrus"
 )
 
 func Listen(bindAddress, name string, acceptF func(transport.Conn)) (io.Closer, error) {
-	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress)
+	log := logging.For("transport.tcp").With("endpoint", name+"/"+Type+":"+bindAddress)
 
 	listener, err := net.Listen("tcp", bindAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	go acceptLoop(log.Entry, name, listener, acceptF)
+	go acceptLoop(log, name, listener, acceptF)
 
 	return listener, nil
 }
 
-func acceptLoop(log *logrus.Entry, name string, listener net.Listener, acceptF func(transport.Conn)) {
+func acceptLoop(log *slog.Logger, name string, listener net.Listener, acceptF func(transport.Conn)) {
 	defer log.Error("exited")
 
 	for {
 		socket, err := listener.Accept()
 		if err != nil {
-			log.WithField("err", err).Error("accept failed. failure not recoverable. exiting listen loop")
+			log.Error("accept failed. failure not recoverable. exiting listen loop", "error", err)
 			return
 		} else {
 			connection := &Connection{
@@ -57,7 +58,7 @@ func acceptLoop(log *logrus.Entry, name string, listener net.Listener, acceptF f
 			}
 			acceptF(connection)
 
-			log.WithField("addr", socket.RemoteAddr().String()).Info("accepted connection")
+			log.With("addr", socket.RemoteAddr().String()).Info("accepted connection")
 		}
 	}
 }

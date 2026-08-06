@@ -1,13 +1,14 @@
 package udpconn
 
 import (
+	"context"
 	"io"
 	"net"
 	"sync/atomic"
 	"time"
 
-	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/foundation/v2/info"
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/openziti/foundation/v2/mempool"
 	"github.com/pkg/errors"
 )
@@ -68,7 +69,7 @@ func (self *udpListener) Addr() net.Addr {
 }
 
 func (self *udpListener) readLoop() {
-	log := pfxlog.Logger()
+	log := logging.For("transport.udpconn")
 	log.Info("starting udp listener read loop")
 	defer log.Info("stopping udp listener read loop")
 
@@ -77,12 +78,12 @@ func (self *udpListener) readLoop() {
 		buf := bufPool.AcquireBuffer()
 		n, srcAddr, err := self.socket.ReadFromUDP(buf.Buf)
 		if err != nil {
-			log.WithError(err).Error("failure while reading udp message. stopping UDP read loop")
+			log.Error("failure while reading udp message. stopping UDP read loop", "error", err)
 			self.eventC <- errorEvent{error: err}
 			return
 		}
 
-		log.Debugf("read %v bytes from udp, queuing", len(buf.GetPayload()))
+		log.Debug("read bytes from udp, queuing", "bytes", len(buf.GetPayload()))
 		buf.Buf = buf.Buf[:n]
 		self.eventC <- &udpReadEvent{
 			buf:     buf,
@@ -92,7 +93,7 @@ func (self *udpListener) readLoop() {
 }
 
 func (self *udpListener) eventLoop() {
-	log := pfxlog.Logger()
+	log := logging.For("transport.udpconn")
 	log.Info("starting udp listener event loop")
 	defer log.Info("shutting down udp listener event loop")
 
@@ -108,11 +109,11 @@ func (self *udpListener) eventLoop() {
 
 			err := event.handle(self)
 			if err == io.EOF {
-				log.Errorf("EOF detected. stopping UDP event loop")
+				log.Error("EOF detected. stopping UDP event loop")
 				return
 			}
 			if err != nil {
-				log.Errorf("error while handling udp event: %v", err)
+				log.Error("error while handling udp event", "error", err)
 			}
 		case <-timer.C:
 			self.dropExpired()
@@ -121,7 +122,7 @@ func (self *udpListener) eventLoop() {
 }
 
 func (self *udpListener) getWriteQueue(srcAddr net.Addr) WriteQueue {
-	pfxlog.Logger().Debugf("Looking up address %v", srcAddr)
+	logging.For("transport.udpconn").Debug("looking up address", "address", srcAddr)
 	result := self.connMap[srcAddr.String()]
 	if result == nil {
 		return nil
@@ -147,19 +148,19 @@ func (self *udpListener) createWriteQueue(srcAddr net.Addr) (WriteQueue, error) 
 
 	self.acceptChannel <- conn
 
-	pfxlog.Logger().WithField("udpConnId", srcAddr.String()).Debug("created new virtual UDP connection")
+	logging.For("transport.udpconn").With("udpConnId", srcAddr.String()).Debug("created new virtual UDP connection")
 
 	return conn, nil
 }
 
 func (self *udpListener) dropExpired() {
-	log := pfxlog.Logger()
+	log := logging.For("transport.udpconn")
 	now := time.Now()
 	for key, conn := range self.connMap {
 		if conn.closed.Load() {
 			delete(self.connMap, conn.srcAddr.String())
 		} else if self.expirationPolicy.IsExpired(now, conn.GetLastUsed()) {
-			log.WithField("udpConnId", key).Debug("connection expired. removing from UDP vconn manager")
+			log.With("udpConnId", key).Debug("connection expired. removing from UDP vconn manager")
 			self.close(conn)
 		}
 	}
@@ -191,12 +192,12 @@ type udpReadEvent struct {
 }
 
 func (event *udpReadEvent) handle(listener *udpListener) error {
-	log := pfxlog.Logger()
+	log := logging.For("transport.udpconn")
 
 	writeQueue := listener.getWriteQueue(event.srcAddr)
 
 	if writeQueue == nil {
-		log.Debugf("received connection for %v --> %v", event.srcAddr, listener.socket.LocalAddr())
+		log.Debug("received connection", "srcAddr", event.srcAddr, "localAddr", listener.socket.LocalAddr())
 		var err error
 		writeQueue, err = listener.createWriteQueue(event.srcAddr)
 		if err != nil {
@@ -204,7 +205,7 @@ func (event *udpReadEvent) handle(listener *udpListener) error {
 		}
 	}
 
-	log.Tracef("received %v bytes from %v", len(event.buf.Buf), writeQueue.LocalAddr())
+	log.Log(context.Background(), logging.LevelTrace, "received bytes", "bytes", len(event.buf.Buf), "from", writeQueue.LocalAddr())
 	writeQueue.Accept(event.buf)
 
 	return nil

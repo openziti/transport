@@ -24,12 +24,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/michaelquigley/pfxlog"
+	"log/slog"
+
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/openziti/transport/v2/shaper"
 	"github.com/pion/dtls/v3"
-	"github.com/sirupsen/logrus"
 )
 
 const DefaultHandshakeTimeout = 30 * time.Second
@@ -48,7 +49,7 @@ func Listen(addr *address, name string, i *identity.TokenId, tcfg transport.Conf
 		timeout = DefaultHandshakeTimeout
 	}
 
-	log := pfxlog.ContextLogger(name + "/" + addr.String()).Entry
+	log := logging.For("transport.dtls").With("endpoint", name+"/"+addr.String())
 
 	var certs []tls.Certificate
 
@@ -74,7 +75,7 @@ func Listen(addr *address, name string, i *identity.TokenId, tcfg transport.Conf
 		return nil, err
 	}
 	if found {
-		log.Infof("limiting DTLS writes to %dB/s", bps)
+		log.Info("limiting DTLS writes", "bytesPerSecond", bps)
 		wf = func(w io.Writer) io.Writer {
 			return shaper.LimitWriter(w, time.Second, bps)
 		}
@@ -109,17 +110,17 @@ func (self *acceptor) Close() error {
 	return nil
 }
 
-func (self *acceptor) acceptLoop(log *logrus.Entry) {
+func (self *acceptor) acceptLoop(log *slog.Logger) {
 	defer log.Info("exited")
 
 	for !self.closed.Load() {
 		socket, err := self.listener.Accept()
 		if err != nil {
 			if self.closed.Load() {
-				log.WithError(err).Info("listener closed, exiting")
+				log.Info("listener closed, exiting", "error", err)
 				return
 			}
-			log.WithError(err).Error("accept failed. Failure not recoverable. Exiting listen loop")
+			log.Error("accept failed. failure not recoverable. exiting listen loop", "error", err)
 			return
 		}
 
@@ -133,18 +134,18 @@ func (self *acceptor) acceptLoop(log *logrus.Entry) {
 		cancelF()
 
 		if err != nil {
-			log.WithError(err).Error("dtls handshake error")
+			log.Error("dtls handshake error", "error", err)
 			if err = conn.Close(); err != nil {
-				log.WithError(err).Error("error closing connection")
+				log.Error("error closing connection", "error", err)
 			}
 			continue
 		}
 
 		certs, err := getPeerCerts(conn)
 		if err != nil {
-			log.WithError(err).Error("unable to parse peer certificates")
+			log.Error("unable to parse peer certificates", "error", err)
 			if err = conn.Close(); err != nil {
-				log.WithError(err).Error("error closing connection")
+				log.Error("error closing connection", "error", err)
 			}
 			continue
 		}

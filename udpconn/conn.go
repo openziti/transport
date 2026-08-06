@@ -22,9 +22,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/michaelquigley/pfxlog"
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/openziti/foundation/v2/mempool"
-	"github.com/sirupsen/logrus"
 )
 
 type udpConn struct {
@@ -39,12 +38,12 @@ type udpConn struct {
 }
 
 func (conn *udpConn) Accept(buffer mempool.PooledBuffer) {
-	logrus.WithField("udpConnId", conn.srcAddr.String()).Debugf("udp->ziti: queuing")
+	logging.For("transport.udpconn").With("udpConnId", conn.srcAddr.String()).Debug("udp->ziti: queuing")
 	select {
 	case conn.readC <- buffer:
 	case <-conn.closeNotify:
 		buffer.Release()
-		logrus.WithField("udpConnId", conn.srcAddr.String()).Debugf("udp->ziti: closed, cancelling accept")
+		logging.For("transport.udpconn").With("udpConnId", conn.srcAddr.String()).Debug("udp->ziti: closed, cancelling accept")
 	}
 }
 
@@ -73,7 +72,7 @@ func (conn *udpConn) WriteTo(w io.Writer) (n int64, err error) {
 		}
 
 		payload := buf.GetPayload()
-		pfxlog.Logger().WithField("udpConnId", conn.srcAddr.String()).Debugf("udp->ziti: %v bytes", len(payload))
+		logging.For("transport.udpconn").With("udpConnId", conn.srcAddr.String()).Debug("udp->ziti", "bytes", len(payload))
 		n, err := w.Write(payload)
 		buf.Release()
 		conn.markUsed()
@@ -133,7 +132,7 @@ func (conn *udpConn) Read(b []byte) (n int, err error) {
 }
 
 func (conn *udpConn) Write(b []byte) (int, error) {
-	pfxlog.Logger().WithField("udpConnId", conn.srcAddr.String()).Debugf("ziti->udp: %v bytes", len(b))
+	logging.For("transport.udpconn").With("udpConnId", conn.srcAddr.String()).Debug("ziti->udp", "bytes", len(b))
 	// TODO: UDP chunking, MTU chunking?
 	n, err := conn.writeConn.WriteTo(b, conn.srcAddr)
 	conn.markUsed()

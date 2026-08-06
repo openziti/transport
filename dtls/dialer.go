@@ -23,7 +23,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/michaelquigley/pfxlog"
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/openziti/transport/v2/shaper"
@@ -40,8 +40,8 @@ func Dial(addr *address, name string, i *identity.TokenId, timeout time.Duration
 }
 
 func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.TokenId, timeout time.Duration, tcfg transport.Configuration) (transport.Conn, error) {
-	log := pfxlog.Logger()
-	log.WithField("address", addr.String()).Debug("dialing")
+	log := logging.For("transport.dtls")
+	log.With("address", addr.String()).Debug("dialing")
 
 	if addr.err != nil {
 		return nil, addr.err
@@ -65,7 +65,7 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 	defer func() {
 		if closeUdpConn {
 			if closeErr := udpConn.Close(); closeErr != nil {
-				log.WithError(closeErr).Error("error closing udp connection")
+				log.Error("error closing udp connection", "error", closeErr)
 			}
 		}
 	}()
@@ -109,7 +109,7 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 	defer func() {
 		if closeConn {
 			if closeErr := conn.Close(); closeErr != nil {
-				log.WithError(closeErr).Error("error closing dtls connection")
+				log.Error("error closing dtls connection", "error", closeErr)
 			}
 		}
 	}()
@@ -130,7 +130,7 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 		return nil, errors.Wrap(err, "error getting peer certificates")
 	}
 
-	log.Debugf("server provided [%d] certificates", len(certs))
+	log.Debug("server provided certificates", "count", len(certs))
 
 	var w io.Writer = conn
 	bps, found, err := tcfg.GetInt64Value("dtls", "maxBytesPerSecond")
@@ -138,7 +138,7 @@ func DialWithLocalBinding(addr *address, name, localBinding string, i *identity.
 		return nil, err
 	}
 	if found {
-		log.Infof("limiting DTLS writes to %dB/s", bps)
+		log.Info("limiting DTLS writes", "bytesPerSecond", bps)
 		w = shaper.LimitWriter(conn, time.Second, bps)
 	}
 

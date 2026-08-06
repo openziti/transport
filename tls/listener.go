@@ -21,17 +21,17 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/michaelquigley/pfxlog"
 	"github.com/openziti/foundation/v2/concurrenz"
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/openziti/foundation/v2/rate"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -71,7 +71,7 @@ func init() {
 }
 
 func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transport.Conn), protocols ...string) (io.Closer, error) {
-	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress).Entry
+	log := logging.For("transport.tls").With("endpoint", name+"/"+Type+":"+bindAddress)
 
 	config := i.ServerTLSConfig().Clone()
 	if len(protocols) > 0 {
@@ -85,7 +85,7 @@ func Listen(bindAddress, name string, i *identity.TokenId, acceptF func(transpor
 
 	err := registerWithSharedListener(bindAddress, result)
 	if err != nil {
-		log.WithError(err).Error("failed to register with shared listener")
+		log.Error("failed to register with shared listener", "error", err)
 		return nil, err
 	}
 
@@ -128,7 +128,7 @@ func (self *tlsListener) tlsAccept(conn transport.Conn) {
 // specified by config.NextProtos
 // It can be used in http.Server or other standard components
 func ListenTLS(bindAddress, name string, config *tls.Config) (net.Listener, error) {
-	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress).Entry
+	log := logging.For("transport.tls").With("endpoint", name+"/"+Type+":"+bindAddress)
 
 	l := &tlsListener{}
 
@@ -140,7 +140,7 @@ func ListenTLS(bindAddress, name string, config *tls.Config) (net.Listener, erro
 
 	err := registerWithSharedListener(bindAddress, handler)
 	if err != nil {
-		log.WithError(err).Error("failed to register with shared listener")
+		log.Error("failed to register with shared listener", "error", err)
 		return nil, err
 	}
 
@@ -177,7 +177,7 @@ func registerWithSharedListener(bindAddress string, acc *protocolHandler) error 
 	sl = el.(*sharedListener)
 
 	if !found {
-		sl.log = pfxlog.ContextLogger(Type + ":" + bindAddress).Entry
+		sl.log = logging.For("transport.tls").With("endpoint", Type+":"+bindAddress)
 
 		sl.tlsCfg = &tls.Config{
 			GetConfigForClient: sl.getConfig,
@@ -217,7 +217,7 @@ func registerWithSharedListener(bindAddress string, acc *protocolHandler) error 
 }
 
 type sharedListener struct {
-	log      logrus.FieldLogger
+	log      *slog.Logger
 	address  string
 	tlsCfg   *tls.Config
 	mtx      sync.RWMutex
@@ -228,7 +228,7 @@ type sharedListener struct {
 }
 
 func (self *sharedListener) processConn(conn *tls.Conn) {
-	log := self.log.WithField("remote", conn.RemoteAddr().String())
+	log := self.log.With("remote", conn.RemoteAddr().String())
 
 	if tcpConn, ok := conn.NetConn().(*net.TCPConn); ok {
 		_ = tcpConn.SetNoDelay(true)
@@ -266,13 +266,13 @@ func (self *sharedListener) processConn(conn *tls.Conn) {
 	err := rateLimiter.RunRateLimitedF(fmt.Sprintf("tls handshake from %s", conn.RemoteAddr().String()), handshakeF)
 
 	if err != nil {
-		log.WithError(err).Error("handshake failed")
+		log.Error("handshake failed", "error", err)
 		_ = conn.Close()
 		return
 	}
 
 	proto := conn.ConnectionState().NegotiatedProtocol
-	log.WithField("client", conn.RemoteAddr()).Debug("selected protocol = '", proto, "'")
+	log.With("client", conn.RemoteAddr()).Debug("selected protocol", "protocol", proto)
 
 	connection := &Connection{
 		detail: &transport.ConnectionDetail{
@@ -292,10 +292,10 @@ func (self *sharedListener) runAccept() {
 		c, err := self.sock.Accept()
 		if err != nil {
 			if self.ctx.Err() != nil {
-				log.WithError(err).Info("listener closed, exiting")
+				log.Info("listener closed, exiting", "error", err)
 				return
 			}
-			log.WithError(err).Error("accept failed, exiting")
+			log.Error("accept failed, exiting", "error", err)
 			return
 		}
 
@@ -306,10 +306,10 @@ func (self *sharedListener) runAccept() {
 }
 
 func (self *sharedListener) getConfig(info *tls.ClientHelloInfo) (*tls.Config, error) {
-	log := self.log.WithField("client", info.Conn.RemoteAddr())
+	log := self.log.With("client", info.Conn.RemoteAddr())
 
 	protos := info.SupportedProtos
-	log.Debug("client requesting protocols = ", protos)
+	log.Debug("client requesting protocols", "protocols", protos)
 
 	ctx := info.Context()
 	handlerOut := ctx.Value(handlerKey).(**protocolHandler)
@@ -320,7 +320,7 @@ func (self *sharedListener) getConfig(info *tls.ClientHelloInfo) (*tls.Config, e
 	var handler *protocolHandler
 	var proto string
 	if protos == nil && len(self.handlers) == 1 {
-		log.Debugf("using single protocol as default")
+		log.Debug("using single protocol as default")
 		for p, h := range self.handlers {
 			proto, handler = p, h
 		}
@@ -332,7 +332,7 @@ func (self *sharedListener) getConfig(info *tls.ClientHelloInfo) (*tls.Config, e
 		for _, p := range protos {
 			h, found := self.handlers[p]
 			if found {
-				log.Debugf("found handler for proto[%s]", p)
+				log.Debug("found handler for proto", "proto", p)
 				handler = h
 				proto = p
 			}
@@ -357,7 +357,7 @@ func (self *sharedListener) getConfig(info *tls.ClientHelloInfo) (*tls.Config, e
 }
 
 func (self *sharedListener) remove(h *protocolHandler) {
-	self.log.WithField("name", h.name).Debug("removing handler")
+	self.log.With("name", h.name).Debug("removing handler")
 
 	protos := h.tls.NextProtos
 	if protos == nil {
