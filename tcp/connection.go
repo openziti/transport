@@ -18,14 +18,18 @@ package tcp
 
 import (
 	"crypto/x509"
+	"fmt"
 	"net"
 
 	"github.com/openziti/transport/v2"
 )
 
+// Connection is a TCP transport connection. It embeds *net.TCPConn rather than net.Conn so
+// that the TCP-specific parts of the socket, notably CloseWrite for half-close, stay reachable
+// through it. Datagram transports have no equivalent, so they keep the net.Conn interface.
 type Connection struct {
 	detail *transport.ConnectionDetail
-	net.Conn
+	*net.TCPConn
 }
 
 func (self *Connection) Detail() *transport.ConnectionDetail {
@@ -34,4 +38,15 @@ func (self *Connection) Detail() *transport.ConnectionDetail {
 
 func (self *Connection) PeerCertificates() []*x509.Certificate {
 	return nil
+}
+
+// asTCPConn narrows a socket to its TCP type. Every socket this package creates comes from
+// dialing or listening on "tcp", so the assertion holds; it returns an error rather than
+// panicking so a future caller wiring in another socket type fails visibly.
+func asTCPConn(socket net.Conn) (*net.TCPConn, error) {
+	tcpConn, ok := socket.(*net.TCPConn)
+	if !ok {
+		return nil, fmt.Errorf("expected *net.TCPConn, got %T", socket)
+	}
+	return tcpConn, nil
 }
