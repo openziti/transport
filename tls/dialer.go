@@ -20,7 +20,7 @@ import (
 	"crypto/tls"
 	"time"
 
-	"github.com/michaelquigley/pfxlog"
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/openziti/transport/v2/proxies"
@@ -38,7 +38,7 @@ func DialWithLocalBinding(a address, name, localBinding string, i *identity.Toke
 		return nil, err
 	}
 
-	log := pfxlog.Logger().WithField("dest", destination)
+	log := logging.For("transport.tls").With("dest", destination)
 
 	tlsCfg := i.ClientTLSConfig()
 	tlsCfg.ServerName = a.hostname
@@ -51,7 +51,7 @@ func DialWithLocalBinding(a address, name, localBinding string, i *identity.Toke
 
 	if proxyConf != nil && proxyConf.Type != transport.ProxyTypeNone {
 		if proxyConf.Type == transport.ProxyTypeHttpConnect {
-			log.Infof("using http connect proxy at %s", proxyConf.Address)
+			log.Info("using http connect proxy", "address", proxyConf.Address)
 			proxyDialer := proxies.NewHttpConnectProxyDialer(dialer, proxyConf.Address, proxyConf.Auth, timeout)
 			conn, err := proxyDialer.Dial("tcp", destination)
 			if err != nil {
@@ -69,7 +69,7 @@ func DialWithLocalBinding(a address, name, localBinding string, i *identity.Toke
 		}
 	}
 
-	log.Debugf("server provided [%d] certificates", len(tlsConn.ConnectionState().PeerCertificates))
+	log.Debug("server provided certificates", "count", len(tlsConn.ConnectionState().PeerCertificates))
 
 	return &Connection{
 		detail: &transport.ConnectionDetail{

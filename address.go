@@ -17,6 +17,7 @@
 package transport
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math"
@@ -25,11 +26,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/openziti/identity"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
 )
+
+var log = logging.For("transport")
 
 const (
 	KeyProxy                    = "proxy"
@@ -349,18 +352,18 @@ func ResolveInterface(toResolve string) (*net.Interface, error) {
 
 	for _, iface := range ifaces {
 		if (iface.Flags & net.FlagUp) == 0 {
-			log.Debugf("Interface %s is down, ignoring it for address resolution", iface.Name)
+			log.Debug("interface is down, ignoring it for address resolution", "interface", iface.Name)
 			continue
 		}
 
 		addrs, err := iface.Addrs()
 		if err != nil {
-			log.Warnf("Could not check interface %s (%s)", iface.Name, err)
+			log.Warn("could not check interface", "interface", iface.Name, "error", err)
 			continue
 		}
 
 		for _, addr := range addrs {
-			log.Tracef("Checking interface %s (%s) against %s", iface.Name, addr.String(), toResolve)
+			log.Log(context.Background(), logging.LevelTrace, "checking interface", "interface", iface.Name, "address", addr.String(), "toResolve", toResolve)
 
 			var ip net.IP
 
@@ -374,7 +377,7 @@ func ResolveInterface(toResolve string) (*net.Interface, error) {
 			}
 
 			if ip.String() == toResolve {
-				log.Debugf("Resolved %s to interface %s", toResolve, iface.Name)
+				log.Debug("resolved to interface", "toResolve", toResolve, "interface", iface.Name)
 				return &iface, nil
 			}
 		}

@@ -22,33 +22,34 @@ import (
 	"math"
 	"net"
 
-	"github.com/michaelquigley/pfxlog"
+	"log/slog"
+
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/openziti/transport/v2/udpconn"
-	"github.com/sirupsen/logrus"
 )
 
 func Listen(bindAddress *net.UDPAddr, name string, i *identity.TokenId, acceptF func(transport.Conn)) (io.Closer, error) {
-	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress.String())
+	log := logging.For("transport.udp").With("endpoint", name+"/"+Type+":"+bindAddress.String())
 
 	listener, err := udpconn.Listen("udp", bindAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	go acceptLoop(log.Entry, name, listener, acceptF)
+	go acceptLoop(log, name, listener, acceptF)
 
 	return listener, nil
 }
 
-func acceptLoop(log *logrus.Entry, name string, listener net.Listener, acceptF func(transport.Conn)) {
+func acceptLoop(log *slog.Logger, name string, listener net.Listener, acceptF func(transport.Conn)) {
 	defer log.Error("exited")
 
 	for {
 		socket, err := listener.Accept()
 		if err != nil {
-			log.WithField("err", err).Error("accept failed. Failure not recoverable. Exiting listen loop")
+			log.Error("accept failed. failure not recoverable. exiting listen loop", "error", err)
 			return
 		} else {
 			log.Info("new udp connection accepted")

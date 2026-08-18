@@ -21,14 +21,15 @@ import (
 	"sync"
 	"time"
 
+	"log/slog"
+
 	"github.com/gorilla/websocket"
-	"github.com/sirupsen/logrus"
 )
 
 type connImpl struct {
 	ws       *websocket.Conn
 	leftover []byte
-	log      *logrus.Entry
+	log      *slog.Logger
 	cfg      *Config
 	mu       sync.Mutex
 }
@@ -69,7 +70,7 @@ func (self *connImpl) pinger() {
 	lastResponse := time.Now()
 
 	self.ws.SetPongHandler(func(msg string) error {
-		self.log.Debugf("connImpl.pongHandler received websocket Pong: %s", msg)
+		self.log.Debug("connImpl.pongHandler received websocket Pong", "msg", msg)
 		lastResponse = time.Now()
 		return nil
 	})
@@ -83,14 +84,14 @@ func (self *connImpl) pinger() {
 		err := self.ws.WriteMessage(websocket.PingMessage, []byte("browzerkeepalive"))
 		self.mu.Unlock()
 		if err != nil {
-			self.log.Warnf("connImpl.pinger: %v", err)
+			self.log.Warn("connImpl.pinger error", "error", err)
 			_ = self.ws.Close()
 			return
 		}
 		if time.Since(lastResponse) > self.cfg.PongTimeout {
-			self.log.Errorf("connImpl.pinger PongTimeout exceeded, closing WebSocket")
+			self.log.Error("connImpl.pinger PongTimeout exceeded, closing WebSocket")
 			if err = self.ws.Close(); err != nil {
-				self.log.WithError(err).Error("error closing conn after connImpl.pinger PongTimeout exceeded")
+				self.log.Error("error closing conn after connImpl.pinger PongTimeout exceeded", "error", err)
 			}
 			return
 		}

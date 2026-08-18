@@ -26,21 +26,23 @@ import (
 
 	"nhooyr.io/websocket"
 
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	transporttls "github.com/openziti/transport/v2/tls"
-	log "github.com/sirupsen/logrus"
 )
+
+var log = logging.For("transport.wss")
 
 func Dial(name string, u url.URL, i *identity.TokenId, to time.Duration, _ transport.Configuration) (transport.Conn, error) {
 	ctx, _ := context.WithTimeout(context.Background(), time.Minute) //cancel //time.Minute)
 
-	log.Debugf("Dialing websocket: %", u.String())
+	log.Debug("dialing websocket", "url", u.String())
 	c, httpResp, err := websocket.Dial(ctx, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("httpResp %v", httpResp)
+	log.Debug("httpResp", "resp", httpResp)
 
 	conn := websocket.NetConn(ctx, c, websocket.MessageBinary)
 	tlsConn := tls.Client(conn, ClientTLSConfig(u, i))

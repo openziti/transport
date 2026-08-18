@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -29,9 +30,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/michaelquigley/pfxlog"
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/openziti/transport/v2"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -45,7 +45,7 @@ var (
 )
 
 type wssListener struct {
-	log      *logrus.Entry
+	log      *slog.Logger
 	acceptF  func(transport.Conn)
 	cfg      *Config
 	ctr      int64
@@ -62,7 +62,7 @@ func (listener *wssListener) handleWebsocket(w http.ResponseWriter, r *http.Requ
 	c, err := listener.upgrader.Upgrade(w, r, nil) // upgrade from HTTP to binary socket
 
 	if err != nil {
-		log.WithError(err).Error("websocket upgrade failed. Failure not recoverable.")
+		log.Error("websocket upgrade failed. failure not recoverable.", "error", err)
 	} else {
 
 		var zero time.Time
@@ -87,7 +87,7 @@ func (listener *wssListener) handleWebsocket(w http.ResponseWriter, r *http.Requ
 
 		tlsConn := tls.Server(connWrapper, cfg)
 		if err = tlsConn.Handshake(); err != nil {
-			log.WithError(err).Error("unable to establish tls over websocket")
+			log.Error("unable to establish tls over websocket", "error", err)
 			_ = c.Close()
 			return
 		}
@@ -110,7 +110,7 @@ func (listener *wssListener) handleWebsocket(w http.ResponseWriter, r *http.Requ
 }
 
 func Listen(bindAddress string, name string, i *identity.TokenId, acceptF func(transport.Conn), tcfg transport.Configuration) (io.Closer, error) {
-	log := pfxlog.ContextLogger(name + "/" + Type + ":" + bindAddress)
+	log := logging.For("transport.wss").With("endpoint", name+"/"+Type+":"+bindAddress)
 
 	cfg := NewDefaultConfig()
 	cfg.Identity = i
@@ -120,12 +120,12 @@ func Listen(bindAddress string, name string, i *identity.TokenId, acceptF func(t
 			return nil, fmt.Errorf("error loading configuration: %w", err)
 		}
 	}
-	logrus.Info(cfg.Dump("ws.Config"))
+	log.Info(cfg.Dump("ws.Config"))
 
-	log.Infof("starting HTTP (websocket) server at bindAddress [%s]", bindAddress)
+	log.Info("starting HTTP (websocket) server", "bindAddress", bindAddress)
 
 	listener := &wssListener{
-		log:     log.Entry,
+		log:     log,
 		acceptF: acceptF,
 		cfg:     cfg,
 		ctr:     0,
@@ -163,7 +163,7 @@ func Listen(bindAddress string, name string, i *identity.TokenId, acceptF func(t
 
 	go func() {
 		if err := httpServer.Serve(nl); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Entry.WithError(err).Error("HTTP server failed")
+			log.Error("HTTP server failed", "error", err)
 		}
 	}()
 

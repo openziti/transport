@@ -24,11 +24,13 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	transporttls "github.com/openziti/transport/v2/tls"
-	log "github.com/sirupsen/logrus"
 )
+
+var log = logging.For("transport.wss")
 
 func Dial(name string, u url.URL, i *identity.TokenId, _ time.Duration, _ transport.Configuration) (transport.Conn, error) {
 	tlsConfig := ClientTLSConfig(u, i)
@@ -38,7 +40,7 @@ func Dial(name string, u url.URL, i *identity.TokenId, _ time.Duration, _ transp
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("httpResp %s", httpResp.Status)
+	log.Debug("httpResp", "status", httpResp.Status)
 
 	detail := &transport.ConnectionDetail{
 		Address: Type + ":" + u.Host,

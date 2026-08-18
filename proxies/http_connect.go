@@ -25,7 +25,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/michaelquigley/pfxlog"
+	"github.com/openziti/foundation/v2/logging"
 	"github.com/pkg/errors"
 	"golang.org/x/net/proxy"
 )
@@ -58,7 +58,7 @@ func (self *HttpConnectProxyDialer) Dial(network, addr string) (net.Conn, error)
 
 	if err = self.Connect(c, addr); err != nil {
 		if closeErr := c.Close(); closeErr != nil {
-			pfxlog.Logger().WithError(closeErr).Error("failed to close connection to proxy after connect error")
+			logging.For("transport.proxies").Error("failed to close connection to proxy after connect error", "error", closeErr)
 		}
 		return nil, err
 	}
@@ -67,9 +67,9 @@ func (self *HttpConnectProxyDialer) Dial(network, addr string) (net.Conn, error)
 }
 
 func (self *HttpConnectProxyDialer) Connect(c net.Conn, addr string) error {
-	log := pfxlog.Logger()
+	log := logging.For("transport.proxies")
 
-	log.Debugf("create connect request to %s", addr)
+	log.Debug("create connect request", "addr", addr)
 
 	ctx := context.Background()
 	if self.timeout > 0 {
@@ -107,7 +107,7 @@ func (self *HttpConnectProxyDialer) Connect(c net.Conn, addr string) error {
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		log.Errorf("proxy returned: %s", string(respBody))
+		log.Error("proxy returned error", "body", string(respBody))
 		return errors.Errorf("received %v instead of 200 OK in response to connect request to proxy server at %s", resp.StatusCode, self.address)
 	}
 
