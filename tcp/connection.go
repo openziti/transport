@@ -24,6 +24,8 @@ import (
 	"github.com/openziti/transport/v2"
 )
 
+var _ interface{ CloseWrite() error } = (*Connection)(nil) // enforce that Connection exposes the socket's half-close
+
 // Connection is a TCP transport connection. It embeds *net.TCPConn rather than net.Conn so
 // that the TCP-specific parts of the socket, notably CloseWrite for half-close, stay reachable
 // through it. Datagram transports have no equivalent, so they keep the net.Conn interface.
