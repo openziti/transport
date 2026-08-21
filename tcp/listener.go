@@ -48,13 +48,19 @@ func acceptLoop(log *slog.Logger, name string, listener net.Listener, acceptF fu
 			log.Error("accept failed. failure not recoverable. exiting listen loop", "error", err)
 			return
 		} else {
+			tcpSocket, err := asTCPConn(socket)
+			if err != nil {
+				log.Error("accepted connection was not a tcp connection, closing", "error", err)
+				_ = socket.Close()
+				continue
+			}
 			connection := &Connection{
 				detail: &transport.ConnectionDetail{
 					Address: Type + ":" + socket.RemoteAddr().String(),
 					InBound: true,
 					Name:    name,
 				},
-				Conn: socket,
+				TCPConn: tcpSocket,
 			}
 			acceptF(connection)
 

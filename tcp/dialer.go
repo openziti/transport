@@ -29,13 +29,18 @@ func Dial(destination, name string, timeout time.Duration) (transport.Conn, erro
 		return nil, err
 	}
 
+	tcpSocket, err := asTCPConn(socket)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Connection{
 		detail: &transport.ConnectionDetail{
 			Address: Type + ":" + destination,
 			InBound: false,
 			Name:    name,
 		},
-		Conn: socket,
+		TCPConn: tcpSocket,
 	}, nil
 }
 
@@ -53,12 +58,17 @@ func DialWithLocalBinding(destination, name, localBinding string, timeout time.D
 		return nil, err
 	}
 
+	tcpSocket, err := asTCPConn(socket)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Connection{
 		detail: &transport.ConnectionDetail{
 			Address: Type + ":" + destination,
 			InBound: false,
 			Name:    name,
 		},
-		Conn: socket,
+		TCPConn: tcpSocket,
 	}, nil
 }
