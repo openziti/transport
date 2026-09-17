@@ -5,8 +5,8 @@ go 1.26.0
 require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
-	github.com/openziti/foundation/v2 v2.0.102
-	github.com/openziti/identity v1.0.142
+	github.com/openziti/foundation/v2 v2.0.104
+	github.com/openziti/identity v1.0.143
 	github.com/pion/dtls/v3 v3.1.8
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.12.1
