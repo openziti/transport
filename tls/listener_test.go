@@ -17,7 +17,6 @@ import (
 	"github.com/openziti/identity"
 	"github.com/openziti/transport/v2"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/http2"
 )
 
 var _ identity.Identity = (*testIdentity)(nil)
@@ -389,9 +388,12 @@ func TestListenTLS(t *testing.T) {
 	}()
 
 	cltTLS := clientId.ClientTLSConfig().Clone()
+	protocols := &http.Protocols{}
+	protocols.SetHTTP2(true)
 	clt := http.Client{
-		Transport: &http2.Transport{
+		Transport: &http.Transport{
 			TLSClientConfig: cltTLS,
+			Protocols:       protocols,
 		},
 		CheckRedirect: nil,
 		Jar:           nil,
