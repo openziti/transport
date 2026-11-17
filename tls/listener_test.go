@@ -413,6 +413,40 @@ func TestListenTLS(t *testing.T) {
 	req.NoError(fooListener.Close())
 }
 
+// TestListenTLSSelectsH2 verifies that a client offering both h2 and http/1.1 gets h2 selected
+// when the handler is registered for both protocols.
+func TestListenTLSSelectsH2(t *testing.T) {
+	req := require.New(t)
+
+	ident := &identity.TokenId{
+		Identity: serverId,
+		Token:    "test",
+		Data:     nil,
+	}
+
+	testAddress := "localhost:14445"
+
+	config := ident.ServerTLSConfig().Clone()
+	config.NextProtos = []string{"h2", "http/1.1"}
+
+	httpListener, err := ListenTLS(testAddress, "web", config)
+	req.NoError(err)
+	defer func() { _ = httpListener.Close() }()
+
+	negotiated := func(clientProtos ...string) string {
+		cfg := clientId.ClientTLSConfig().Clone()
+		cfg.NextProtos = clientProtos
+		conn, err := tls.Dial("tcp", testAddress, cfg)
+		req.NoError(err)
+		defer func() { _ = conn.Close() }()
+		return conn.ConnectionState().NegotiatedProtocol
+	}
+
+	req.Equal("h2", negotiated("h2", "http/1.1"), "client offering h2,http/1.1")
+	req.Equal("h2", negotiated("h2"), "client offering h2 only")
+	req.Equal("http/1.1", negotiated("http/1.1"), "client offering http/1.1 only")
+}
+
 func TestListenSingleProto(t *testing.T) {
 	req := require.New(t)
 
