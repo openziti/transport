@@ -329,12 +329,14 @@ func (self *sharedListener) getConfig(info *tls.ClientHelloInfo) (*tls.Config, e
 			protos = append(protos, noProtocol)
 		}
 
+		// protos is in client preference order, so the first match wins
 		for _, p := range protos {
 			h, found := self.handlers[p]
 			if found {
 				log.Debug("found handler for proto", "proto", p)
 				handler = h
 				proto = p
+				break
 			}
 		}
 	}
